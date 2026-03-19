@@ -8,6 +8,13 @@
       "when": 1773945645940,
       "tag": "0000_nosy_cobalt_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773954239040,
+      "tag": "0001_hot_skrulls",
+      "breakpoints": true
     }
   ]
 }
