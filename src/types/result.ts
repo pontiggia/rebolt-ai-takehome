@@ -1,6 +1,5 @@
 import type { AppError } from './errors';
 
-/** Discriminated union for recoverable operation outcomes. */
 export type Result<T, E = AppError> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: E };

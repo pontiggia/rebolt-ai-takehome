@@ -1,8 +1,3 @@
-/**
- * Discriminated union of all recoverable domain errors.
- * Infrastructure errors (DB down, network failure) still throw —
- * they are unrecoverable within business logic.
- */
 export type AppError = AuthError | ValidationError | NotFoundError | ConflictError | FileError;
 
 export interface AuthError {
@@ -33,7 +28,6 @@ export interface FileError {
   readonly code: 'INVALID_TYPE' | 'TOO_LARGE' | 'PARSE_FAILED' | 'TOO_MANY_ROWS' | 'TOO_MANY_COLUMNS';
 }
 
-/** Maps a domain error to an HTTP Response at the API boundary. */
 export function errorResponse(error: AppError): Response {
   const statusMap: Record<AppError['type'], number> = {
     AUTH_ERROR: 401,
