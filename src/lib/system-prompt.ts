@@ -1,3 +1,5 @@
+import 'server-only';
+
 import type { FileDataContext } from '@/types/file';
 
 export function buildAnalysisPrompt(fileData: FileDataContext | null): string {

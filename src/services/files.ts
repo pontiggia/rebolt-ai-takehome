@@ -1,3 +1,5 @@
+import 'server-only';
+
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import type { Result } from '@/types/result';

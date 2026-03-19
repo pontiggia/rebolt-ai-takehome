@@ -1,22 +1,31 @@
 import { z } from 'zod/v4';
+import type { PersistedChatParts } from '@/types/chat';
 
 // ─── Chat ───
-export const chatRequestSchema = z.object({
-  messages: z.array(
-    z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string().min(1),
-    }),
-  ),
+export const chatBodySchema = z.object({
   conversationId: z.string().uuid(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        role: z.enum(['user', 'assistant']),
+        parts: z.array(z.unknown()),
+        metadata: z.unknown().optional(),
+      }),
+    )
+    .min(1),
 });
-export type ChatRequest = z.infer<typeof chatRequestSchema>;
+export type ChatBody = z.infer<typeof chatBodySchema>;
+
+export const createConversationBodySchema = z.object({
+  initialMessage: z.string().trim().min(1).max(4000).optional(),
+});
+export type CreateConversationBody = z.infer<typeof createConversationBodySchema>;
 
 // ─── Upload ───
 export interface UploadResponse {
   readonly fileId: string;
   readonly fileName: string;
-  readonly blobUrl: string;
   readonly columnNames: readonly string[];
   readonly rowCount: number;
   readonly preview: readonly Record<string, unknown>[];
@@ -40,6 +49,7 @@ export interface MessageResponse {
   readonly id: string;
   readonly role: 'user' | 'assistant';
   readonly content: string;
+  readonly parts: PersistedChatParts;
   readonly createdAt: string;
 }
 

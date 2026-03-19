@@ -1,16 +1,24 @@
-import { streamText, stepCountIs } from 'ai';
+import { convertToModelMessages, safeValidateUIMessages, stepCountIs, streamText } from 'ai';
+import type { UIMessage } from 'ai';
+import type { Tool } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { withAuthHandler } from '@/lib/api';
+import { invalidRequestError, parseJsonBody, withAuthHandler } from '@/lib/api';
 import { getConversation, getConversationFileData } from '@/services/conversations';
 import { errorResponse } from '@/types/errors';
-import { chatRequestSchema } from '@/types/api';
+import { chatBodySchema } from '@/types/api';
 import { buildAnalysisPrompt } from '@/lib/system-prompt';
 import { createChatTools } from '@/lib/tools';
 import { AI_MODELS } from '@/types/ai';
+import { syncConversationMessages, upsertConversationMessage } from '@/services/messages';
+import { uuidv7 } from 'uuidv7';
 
 export const POST = withAuthHandler(async (req, { user }) => {
-  const body = chatRequestSchema.parse(await req.json());
-  const { messages, conversationId } = body;
+  const parsedBody = await parseJsonBody(req, chatBodySchema);
+  if (!parsedBody.success) {
+    return errorResponse(parsedBody.error);
+  }
+
+  const { conversationId, messages: rawMessages } = parsedBody.data;
 
   const [convoResult, fileResult] = await Promise.all([
     getConversation(conversationId, user.id),
@@ -20,15 +28,37 @@ export const POST = withAuthHandler(async (req, { user }) => {
   if (!convoResult.ok) return errorResponse(convoResult.error);
 
   const fileData = fileResult.ok ? fileResult.value : null;
+  const tools = createChatTools(fileData);
+  const validatedMessages = await safeValidateUIMessages<UIMessage>({
+    messages: rawMessages,
+    tools: tools as Record<string, Tool<unknown, unknown>>,
+  });
+
+  if (!validatedMessages.success) {
+    return errorResponse(invalidRequestError(validatedMessages.error.message));
+  }
+
+  const messages = validatedMessages.data;
+  await syncConversationMessages(conversationId, messages);
 
   const result = streamText({
     model: openai(AI_MODELS.analysis),
     system: buildAnalysisPrompt(fileData),
-    messages,
+    messages: await convertToModelMessages(messages),
     maxOutputTokens: 4096,
     stopWhen: stepCountIs(3),
-    tools: createChatTools(fileData),
+    tools,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse<UIMessage>({
+    originalMessages: messages,
+    generateMessageId: () => uuidv7(),
+    onFinish: async ({ isAborted, responseMessage }) => {
+      if (isAborted || responseMessage.parts.length === 0) {
+        return;
+      }
+
+      await upsertConversationMessage(conversationId, responseMessage);
+    },
+  });
 });

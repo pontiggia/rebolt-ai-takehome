@@ -1,3 +1,8 @@
+import type { UIMessage } from 'ai';
+
+export type PersistedChatMessage = UIMessage;
+export type PersistedChatParts = PersistedChatMessage['parts'];
+
 export interface ArtifactState {
   readonly code: string | null;
   readonly error: string | null;
