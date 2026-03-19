@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter, Manrope } from 'next/font/google';
+import { Inter, Manrope, Geist } from 'next/font/google';
 import { Geist_Mono } from 'next/font/google';
 import { withAuth } from '@workos-inc/authkit-nextjs';
 import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components';
 import './globals.css';
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({
   subsets: ['latin'],
@@ -35,7 +38,7 @@ export default async function RootLayout({
   const { accessToken, ...initialAuth } = auth;
 
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={cn("h-full", "antialiased", inter.variable, manrope.variable, geistMono.variable, "font-sans", geist.variable)}>
       <body className="min-h-full flex flex-col">
         <AuthKitProvider initialAuth={initialAuth}>{children}</AuthKitProvider>
       </body>
