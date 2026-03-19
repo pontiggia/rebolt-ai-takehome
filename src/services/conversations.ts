@@ -1,11 +1,15 @@
+import 'server-only';
+
 import { db } from '@/db/client';
 import { conversations, files } from '@/db/schema';
 import type { Conversation } from '@/db/schema';
 import type { FileDataContext } from '@/types/file';
 import type { Result } from '@/types/result';
 import type { NotFoundError } from '@/types/errors';
+import type { ConversationDetailResponse } from '@/types/api';
 import { ok, err } from '@/types/result';
 import { eq, and, desc } from 'drizzle-orm';
+import { listConversationMessages } from '@/services/messages';
 
 export async function getConversation(
   conversationId: string,
@@ -49,6 +53,38 @@ export async function listConversations(userId: string): Promise<Result<Conversa
   });
 
   return ok(convos);
+}
+
+export async function getConversationDetail(
+  conversationId: string,
+  userId: string,
+): Promise<Result<ConversationDetailResponse, NotFoundError>> {
+  const convo = await getConversation(conversationId, userId);
+  if (!convo.ok) return convo;
+
+  const [messages, conversationFiles] = await Promise.all([
+    listConversationMessages(conversationId),
+    db.query.files.findMany({
+      where: eq(files.conversationId, conversationId),
+      orderBy: [desc(files.createdAt)],
+    }),
+  ]);
+
+  return ok({
+    conversation: {
+      id: convo.value.id,
+      title: convo.value.title,
+      updatedAt: convo.value.updatedAt.toISOString(),
+    },
+    messages,
+    files: conversationFiles.map((file) => ({
+      id: file.id,
+      fileName: file.fileName,
+      fileType: file.fileType,
+      columnNames: file.columnNames,
+      rowCount: file.rowCount,
+    })),
+  });
 }
 
 export async function deleteConversation(conversationId: string, userId: string): Promise<Result<void, NotFoundError>> {

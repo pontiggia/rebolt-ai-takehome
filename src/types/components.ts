@@ -9,7 +9,6 @@ export interface ArtifactPanelProps {
 export interface FileUploadBadgeProps {
   readonly fileName: string;
   readonly rowCount: number;
-  readonly onRemove: () => void;
 }
 
 export interface SidebarItemProps {
