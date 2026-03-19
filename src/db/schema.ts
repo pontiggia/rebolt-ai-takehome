@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, integer, jsonb, uuid, varchar, index } from 'drizzle-orm/pg-core';
+import type { UIMessage } from 'ai';
+import { pgTable, text, timestamp, integer, jsonb, uuid, varchar, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
@@ -37,11 +38,16 @@ export const messages = pgTable(
     conversationId: uuid('conversation_id')
       .notNull()
       .references(() => conversations.id, { onDelete: 'cascade' }),
+    uiMessageId: text('ui_message_id').notNull(),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
+    parts: jsonb('parts').$type<UIMessage['parts']>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('messages_conversation_id_idx').on(table.conversationId)],
+  (table) => [
+    index('messages_conversation_id_idx').on(table.conversationId),
+    uniqueIndex('messages_ui_message_id_idx').on(table.uiMessageId),
+  ],
 );
 
 // ─── Files ───
@@ -60,7 +66,7 @@ export const files = pgTable(
     fileName: text('file_name').notNull(),
     fileType: text('file_type').notNull(),
     fileSize: integer('file_size').notNull(),
-    blobUrl: text('blob_url').notNull(),
+    blobUrl: text('blob_url'),
     columnNames: jsonb('column_names').$type<string[]>().notNull(),
     rowCount: integer('row_count').notNull(),
     sampleData: jsonb('sample_data').$type<Record<string, unknown>[]>().notNull(),
