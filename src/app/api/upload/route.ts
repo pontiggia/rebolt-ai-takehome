@@ -1,5 +1,5 @@
-import { withAuthHandler } from '@/lib/api';
-import { invalidRequestError } from '@/lib/api';
+import { put } from '@vercel/blob';
+import { withAuthHandler, invalidRequestError } from '@/lib/api';
 import { validateFile, parseFileContents } from '@/services/files';
 import { errorResponse } from '@/types/errors';
 import { FILE_LIMITS } from '@/types/file';
@@ -40,6 +40,8 @@ export const POST = withAuthHandler(async (req, { user }) => {
   const parsed = parseFileContents(buffer, file.type);
   if (!parsed.ok) return errorResponse(parsed.error);
 
+  const blob = await put(file.name, file, { access: 'public' });
+
   const sampleData = parsed.value.rows.slice(0, FILE_LIMITS.sampleSize) as Record<string, unknown>[];
   const [fileRecord] = await db
     .insert(files)
@@ -49,7 +51,7 @@ export const POST = withAuthHandler(async (req, { user }) => {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
-      blobUrl: null,
+      blobUrl: blob.url,
       columnNames: parsed.value.columnNames as string[],
       rowCount: parsed.value.rowCount,
       sampleData,
@@ -61,6 +63,7 @@ export const POST = withAuthHandler(async (req, { user }) => {
   const response: UploadResponse = {
     fileId: fileRecord.id,
     fileName: fileRecord.fileName,
+    blobUrl: fileRecord.blobUrl,
     columnNames: parsed.value.columnNames,
     rowCount: parsed.value.rowCount,
     preview: parsed.value.rows.slice(0, 5),

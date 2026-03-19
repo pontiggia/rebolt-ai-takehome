@@ -26,6 +26,7 @@ export type CreateConversationBody = z.infer<typeof createConversationBodySchema
 export interface UploadResponse {
   readonly fileId: string;
   readonly fileName: string;
+  readonly blobUrl: string;
   readonly columnNames: readonly string[];
   readonly rowCount: number;
   readonly preview: readonly Record<string, unknown>[];

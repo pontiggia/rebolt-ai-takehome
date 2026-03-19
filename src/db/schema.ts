@@ -66,7 +66,7 @@ export const files = pgTable(
     fileName: text('file_name').notNull(),
     fileType: text('file_type').notNull(),
     fileSize: integer('file_size').notNull(),
-    blobUrl: text('blob_url'),
+    blobUrl: text('blob_url').notNull(),
     columnNames: jsonb('column_names').$type<string[]>().notNull(),
     rowCount: integer('row_count').notNull(),
     sampleData: jsonb('sample_data').$type<Record<string, unknown>[]>().notNull(),
