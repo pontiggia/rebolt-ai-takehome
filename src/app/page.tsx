@@ -1,5 +1,6 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
 import { redirect } from 'next/navigation';
+import Image from 'next/image';
 
 export default async function Home() {
   const { user } = await withAuth();
@@ -9,26 +10,56 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
-        <div className="space-y-3 text-center">
-          <p className="font-display text-lg font-semibold text-foreground">Rebolt</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Sign in to continue</h1>
-          <p className="text-sm text-muted-foreground">
-            Continue with Google to access your chats, uploads, and generated artifacts.
-          </p>
-        </div>
+    <main className="flex min-h-screen flex-col bg-background">
+      {/* Top bar */}
+      <header className="flex items-center border-b px-6 py-4">
+        <Image
+          src="/branding/rebolt-wordmark-black.svg"
+          alt="Rebolt"
+          width={120}
+          height={28}
+          style={{ width: 120, height: 'auto' }}
+          priority
+        />
+      </header>
 
-        <div className="mt-8">
+      {/* Centered content */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="flex flex-col items-center gap-6 text-center">
+          {/* Brand icon */}
+          <Image src="/branding/rebolt-icon-black-rounded.svg" alt="" width={64} height={64} priority />
+
+          {/* Heading */}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight text-foreground">Data to insights, instantly</h1>
+            <p className="mx-auto max-w-md text-base text-muted-foreground">
+              Upload your spreadsheets and let AI generate interactive charts, dashboards, and reports.
+            </p>
+          </div>
+
+          {/* CTA */}
           <a
             href="/auth/login"
-            className="flex w-full items-center justify-center gap-3 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="mt-2 inline-flex items-center gap-2.5 rounded-full bg-[#0D0E10] px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-[#0D0E10]/90"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-              <path d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.8-5.4 3.8-3.2 0-5.9-2.7-5.9-5.9s2.7-5.9 5.9-5.9c1.9 0 3.2.8 3.9 1.5l2.7-2.6C17 3.6 14.7 2.6 12 2.6A9.4 9.4 0 0 0 2.6 12 9.4 9.4 0 0 0 12 21.4c5.4 0 9-3.8 9-9.1 0-.6-.1-1.1-.2-1.6H12Z" />
+            Get started
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path
+                d="M1.75 7h10.5M8.75 3.5 12.25 7l-3.5 3.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
-            Continue with Google
           </a>
+
+          {/* Disclaimer */}
+          <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            Sign in with your Google account to start.
+            <br />
+            Your data is processed securely and never shared.
+          </p>
         </div>
       </div>
     </main>

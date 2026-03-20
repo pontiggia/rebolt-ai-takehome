@@ -59,17 +59,23 @@
 - `withAuthHandler()` HOF wraps every route. Calls `withAuth({ ensureSignedIn: true })`, upserts user atomically with `onConflictDoNothing`.
 - `<AuthKitProvider initialAuth={auth}>` in root layout. Exclude `accessToken` from client bundle.
 
-### AI SDK Patterns (Critical — Do NOT use outdated APIs)
+### AI SDK v6 Patterns (Critical — Do NOT use outdated APIs)
 
-- `streamText` for chat (not `generateText`). With `tools` and `maxSteps: 3`.
+- `streamText` for chat (not `generateText`). With `tools` and `stopWhen: stepCountIs(3)` (NOT `maxSteps`).
 - `toUIMessageStreamResponse()` (not `toDataStreamResponse()`).
 - `maxOutputTokens` (not `maxTokens`).
+- Server route must `await convertToModelMessages(messages)` — `UIMessage[]` has `parts`, NOT `content`.
+- Only validate `conversationId` with zod (`chatBodySchema`); messages are unvalidated `UIMessage[]`.
 - `tool()` with `inputSchema` (not `parameters`).
 - `generateText` inside tool `execute()` for multi-model routing.
-- `useChat` with manual `useState` for input (managed input removed in latest SDK).
-- `DefaultChatTransport` for transport config.
+- `useChat` returns `status` (`'ready' | 'submitted' | 'streaming' | 'error'`), NOT `isLoading`.
+- `useChat` with manual `useState` for input (managed input removed).
+- `DefaultChatTransport` from `'ai'` for transport config.
 - `generateText` + `Output.object()` for structured output (not `generateObject`).
-- Render tool parts via `message.parts` → `part.type === 'tool-invocation'`, check `part.state`.
+- `UIMessage` has NO `content` — only `parts`. Import `UIMessage` from `'ai'`.
+- Tool parts: `part.type` is `'tool-{name}'` (e.g., `'tool-generateArtifact'`), NOT `'tool-invocation'`.
+- Tool states: `'input-streaming' | 'input-available' | 'output-available' | 'output-error'` — NOT `'partial-call' | 'call' | 'result'`.
+- Tool output on `part.output`, NOT `part.result`.
 - Model IDs in `AI_MODELS` constant (`types/ai.ts`), never hardcoded.
 
 ### Drizzle ORM Patterns
@@ -90,8 +96,8 @@
 
 ### Design Tokens
 
-- Fonts: Inter (font-sans, body), Manrope (font-display, brand), Geist Mono (font-mono, code).
-- Light theme only. Pure white bg, near-black text, soft blue accent (#3B82F6).
+- Fonts: Inter (font-sans, body/UI), Geist Mono (font-mono, code). Brand wordmark uses SVG from `/public/branding/`.
+- Light theme only. Pure white bg, near-black text, Rebolt brand blue accent (#006AFE).
 - User messages: `bg-primary/10`. Assistant: plain text, no bubble.
 - Shadcn defaults. No custom components. Minimal shadows (`shadow-sm` on focused input only).
 - Border radius: `rounded-md` buttons, `rounded-lg` cards, `rounded-xl` input, `rounded-2xl` bubbles.

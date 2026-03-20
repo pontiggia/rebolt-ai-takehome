@@ -309,16 +309,12 @@ export function errorResponse(error: AppError): Response {
 import { z } from 'zod';
 
 // ─── Chat ───
-export const chatRequestSchema = z.object({
-  messages: z.array(
-    z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string().min(1),
-    }),
-  ),
+// Messages are UIMessage[] from the AI SDK — complex parts structure (no 'content' field).
+// We only validate conversationId here; messages are validated by convertToModelMessages().
+export const chatBodySchema = z.object({
   conversationId: z.string().uuid(),
 });
-export type ChatRequest = z.infer<typeof chatRequestSchema>;
+export type ChatBody = z.infer<typeof chatBodySchema>;
 
 // ─── Upload ───
 export interface UploadResponse {
@@ -901,7 +897,7 @@ Instead of a classification router or regex-based artifact extraction, the AI SD
 
 | Task                          | Model           | Mechanism                                                              |
 | ----------------------------- | --------------- | ---------------------------------------------------------------------- |
-| Chat analysis + routing       | `gpt-4.1-mini`  | `streamText` with tools, `maxSteps: 3`                                 |
+| Chat analysis + routing       | `gpt-4.1-mini`  | `streamText` with tools, `stopWhen: stepCountIs(3)`                    |
 | Data analysis (optional step) | `gpt-4.1-mini`  | `analyzeData` tool — returns insights, shows as collapsible "Analysis" |
 | Artifact code generation      | `gpt-5.3-codex` | Called inside `generateArtifact` tool `execute()`                      |
 | Error correction              | `gpt-5.3-codex` | Same tool, re-invoked on error                                         |
@@ -909,7 +905,7 @@ Instead of a classification router or regex-based artifact extraction, the AI SD
 
 ### Multi-Step Tool Chain
 
-The model can execute **up to 3 steps** per request (`maxSteps: 3`). A typical chain for a complex request:
+The model can execute **up to 3 steps** per request (`stopWhen: stepCountIs(3)`). A typical chain for a complex request:
 
 ```
 Step 1: Model calls analyzeData → examines columns, detects types, finds patterns
@@ -923,19 +919,21 @@ For simple questions (e.g., "how many rows?"), the model skips tools entirely an
 
 ```typescript
 // app/api/chat/route.ts
-import { streamText, generateText, tool } from 'ai';
+import { streamText, convertToModelMessages, stepCountIs } from 'ai';
+import type { UIMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
 import { withAuthHandler } from '@/lib/api';
 import { getConversation, getConversationFileData } from '@/services/conversations';
 import { errorResponse } from '@/types/errors';
-import { chatRequestSchema } from '@/types/api';
-import { buildAnalysisPrompt, buildCodegenPrompt } from '@/lib/system-prompt';
+import { chatBodySchema } from '@/types/api';
+import { buildAnalysisPrompt } from '@/lib/system-prompt';
+import { createChatTools } from '@/lib/tools';
 import { AI_MODELS } from '@/types/ai';
 
 export const POST = withAuthHandler(async (req, { user }) => {
-  const body = chatRequestSchema.parse(await req.json());
-  const { messages, conversationId } = body;
+  const body = await req.json();
+  const { conversationId } = chatBodySchema.parse(body);
+  const messages = body.messages as UIMessage[];
 
   const [convoResult, fileResult] = await Promise.all([
     getConversation(conversationId, user.id),
@@ -944,62 +942,15 @@ export const POST = withAuthHandler(async (req, { user }) => {
 
   if (!convoResult.ok) return errorResponse(convoResult.error);
 
-  const fileData = fileResult.value;
+  const fileData = fileResult.ok ? fileResult.value : null;
 
   const result = streamText({
     model: openai(AI_MODELS.analysis),
     system: buildAnalysisPrompt(fileData),
-    messages,
+    messages: await convertToModelMessages(messages),
     maxOutputTokens: 4096,
-    maxSteps: 3,
-    tools: {
-      analyzeData: tool({
-        description:
-          'Analyze the uploaded data to understand its structure, detect patterns, and determine the best way to represent it. Call this BEFORE generateArtifact when the data needs exploration or when the user asks for insights/analysis.',
-        inputSchema: z.object({
-          task: z
-            .string()
-            .describe(
-              'What to analyze: e.g., "understand the structure of this leave tracker", "find trends in sales over time"',
-            ),
-          columns: z.array(z.string()).describe('Which columns to focus the analysis on'),
-        }),
-        execute: async ({ task, columns }) => {
-          const columnData =
-            fileData?.sampleData.map((row) => Object.fromEntries(columns.map((col) => [col, row[col]]))) ?? [];
-
-          return {
-            summary: `Analyzed ${columns.join(', ')} for: ${task}`,
-            insights: [],
-            suggestedApproach: '',
-            sampleValues: columnData.slice(0, 10),
-          };
-        },
-      }),
-
-      generateArtifact: tool({
-        description:
-          'Generate a self-contained React component that transforms the spreadsheet data into an interactive UI. This can be ANYTHING: charts, dashboards, data tables, trackers, calendars, forms, kanban boards, stat card layouts, or any combination. Call this whenever the user needs an interactive representation of their data.',
-        inputSchema: z.object({
-          title: z.string().describe('Artifact title shown in the UI header'),
-          description: z
-            .string()
-            .describe(
-              'Detailed description of what to build. Be specific about: the type of UI (chart, tracker, dashboard, table, calendar, etc.), which data columns to use, how to organize/group the data, what interactions to support (filtering, sorting, tabs), and the overall layout.',
-            ),
-        }),
-        execute: async ({ title, description }) => {
-          const { text: code } = await generateText({
-            model: openai(AI_MODELS.codegen),
-            system: buildCodegenPrompt(fileData),
-            prompt: `Title: "${title}"\n\nDescription: ${description}`,
-            maxOutputTokens: 8192,
-          });
-
-          return { title, code };
-        },
-      }),
-    },
+    stopWhen: stepCountIs(3),
+    tools: createChatTools(fileData),
   });
 
   return result.toUIMessageStreamResponse();
@@ -1460,8 +1411,14 @@ export function useAppChat(conversationId: string) {
     setInput('');
   };
 
+  // AI SDK v6: no isLoading — derive from status
+  const isLoading = chat.status === 'submitted' || chat.status === 'streaming';
+
   return {
-    ...chat,
+    messages: chat.messages,
+    status: chat.status,
+    isLoading,
+    sendMessage: chat.sendMessage,
     input,
     setInput,
     handleSend,
@@ -1471,56 +1428,74 @@ export function useAppChat(conversationId: string) {
 
 ### Chat Panel — Typed Tool Parts (No Regex)
 
-The AI SDK provides **typed tool parts** in message content. When the model calls `generateArtifact`, the message includes a part with `type: 'tool-invocation'` and `toolName: 'generateArtifact'`. The `state` field indicates progress:
+The AI SDK v6 provides **typed tool parts** in `message.parts`. Each tool gets its own part type: `'tool-analyzeData'`, `'tool-generateArtifact'` (format: `'tool-${toolName}'`). The `state` field indicates progress:
 
-- `'partial-call'` → tool is being called (show skeleton)
-- `'call'` → tool call sent, waiting for result (show loading)
-- `'result'` → tool returned output (render artifact)
+- `'input-streaming'` → tool input is being generated (show skeleton)
+- `'input-available'` → tool call sent, waiting for execution (show loading)
+- `'output-available'` → tool returned output (render artifact) — access via `part.output`
+- `'output-error'` → tool execution failed — access via `part.errorText`
+
+**Note:** `UIMessage` has NO `content` field — only `parts`. The server must use `convertToModelMessages()` to convert `UIMessage[]` before passing to `streamText`.
 
 ```typescript
 // components/chat-panel.tsx
 'use client';
 
-import { useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useAppChat } from '@/hooks/use-app-chat';
 import type { ArtifactState } from '@/types/chat';
 import type { ArtifactToolOutput } from '@/types/ai';
 
-function ChatPanel({ conversationId }: { conversationId: string }) {
-  const { messages, ...chat } = useAppChat(conversationId);
+export function ChatPanel({ conversationId }: { conversationId: string }) {
+  const { messages, isLoading, input, setInput, handleSend, sendMessage } =
+    useAppChat(conversationId);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [artifactState, setArtifactState] = useState<ArtifactState>({
     code: null,
     error: null,
     retryCount: 0,
   });
 
-  // Derive latest artifact from typed tool parts (no regex, no useEffect)
+  // Derive latest artifact from typed tool parts
+  // AI SDK v6: part.type is 'tool-generateArtifact', state is 'output-available', result is part.output
   let latestArtifact: ArtifactToolOutput | null = null;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.role !== 'assistant' || typeof msg.content === 'string') continue;
+    if (msg.role !== 'assistant') continue;
     for (const part of msg.parts ?? []) {
       if (
-        part.type === 'tool-invocation' &&
-        part.toolName === 'generateArtifact' &&
-        part.state === 'result'
+        part.type === 'tool-generateArtifact' &&
+        part.state === 'output-available'
       ) {
-        latestArtifact = part.result as ArtifactToolOutput;
+        latestArtifact = part.output as ArtifactToolOutput;
         break;
       }
     }
     if (latestArtifact) break;
   }
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
     <div className="flex h-full">
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col">
         <div className="flex-1 overflow-y-auto">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+          <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-        <MessageInput {...chat} />
+        <MessageInput
+          input={input}
+          setInput={setInput}
+          handleSend={handleSend}
+          isLoading={isLoading}
+          conversationId={conversationId}
+        />
       </div>
       {latestArtifact && (
         <ArtifactPanel
@@ -1529,7 +1504,7 @@ function ChatPanel({ conversationId }: { conversationId: string }) {
           error={artifactState.error}
           retryCount={artifactState.retryCount}
           onFixError={() => {
-            chat.sendMessage({
+            sendMessage({
               text: `The artifact produced this error: ${artifactState.error}. Please fix the code.`,
             });
           }}
@@ -1552,92 +1527,90 @@ Each message can contain text parts and tool invocation parts. Tool results rend
 'use client';
 
 import { useState } from 'react';
-import type { ArtifactToolOutput, AnalysisToolOutput } from '@/types/ai';
+import ReactMarkdown from 'react-markdown';
+import { cn } from '@/lib/utils';
+import type { AnalysisToolOutput, ArtifactToolOutput } from '@/types/ai';
+import type { UIMessage } from 'ai';
 
-interface MessageBubbleProps {
-  readonly message: {
-    readonly id: string;
-    readonly role: string;
-    readonly content: string;
-    readonly parts?: readonly any[];
-  };
-}
+// AI SDK v6: UIMessage has no 'content' — only 'parts'. Use UIMessage directly.
+export function MessageBubble({ message }: { message: UIMessage }) {
+  const isUser = message.role === 'user';
 
-export function MessageBubble({ message }: MessageBubbleProps) {
   return (
-    <div className={cn('flex gap-3', message.role === 'user' ? 'justify-end' : 'justify-start')}>
-      <div className="prose prose-sm max-w-none">
-        {(message.parts ?? []).map((part, i) => {
-          switch (part.type) {
-            case 'text':
+    <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
+      <div className={cn('max-w-[80%]', isUser && 'rounded-2xl bg-primary/10 px-4 py-2')}>
+        <div className="prose prose-sm max-w-none">
+          {message.parts.map((part, i) => {
+            if (part.type === 'text') {
               return <ReactMarkdown key={i}>{part.text}</ReactMarkdown>;
+            }
 
-            case 'tool-invocation':
-              return <ToolInvocationPart key={i} part={part} />;
+            // AI SDK v6: tool parts have type 'tool-{toolName}' (e.g., 'tool-analyzeData')
+            if (part.type.startsWith('tool-')) {
+              const toolName = part.type.slice(5);
+              return <ToolInvocationPart key={i} toolName={toolName} part={part} />;
+            }
 
-            default:
-              return null;
-          }
-        })}
-        {/* Fallback for plain string content (e.g., user messages) */}
-        {(!message.parts || message.parts.length === 0) && (
-          <ReactMarkdown>{message.content}</ReactMarkdown>
-        )}
+            return null;
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Renders a single tool invocation with appropriate UI per tool + state. */
-function ToolInvocationPart({ part }: { part: any }) {
+// AI SDK v6 tool states: 'input-streaming', 'input-available', 'output-available', 'output-error'
+// Result is on part.output (not part.result)
+function ToolInvocationPart({ toolName, part }: { toolName: string; part: any }) {
   const [expanded, setExpanded] = useState(false);
 
-  // ─── analyzeData: collapsible analysis section ───
-  if (part.toolName === 'analyzeData') {
-    if (part.state === 'partial-call' || part.state === 'call') {
+  if (toolName === 'analyzeData') {
+    if (part.state === 'input-streaming' || part.state === 'input-available') {
       return (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
+        <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
           <span className="animate-pulse">●</span> Analyzing data...
         </div>
       );
     }
-    if (part.state === 'result') {
-      const result = part.result as AnalysisToolOutput;
+    if (part.state === 'output-available') {
+      const result = part.output as AnalysisToolOutput;
       return (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground py-1"
-        >
-          <span className={cn('transition-transform', expanded && 'rotate-90')}>▶</span>
-          Analysis
-        </button>
-        {expanded && (
-          <div className="pl-4 text-sm text-muted-foreground border-l">
-            <p>{result.summary}</p>
-            {result.insights.length > 0 && (
-              <ul>{result.insights.map((insight, j) => <li key={j}>{insight}</li>)}</ul>
-            )}
-          </div>
-        )}
+        <div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 py-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <span className={cn('transition-transform', expanded && 'rotate-90')}>▶</span>
+            Analysis
+          </button>
+          {expanded && (
+            <div className="border-l pl-4 text-sm text-muted-foreground">
+              <p>{result.summary}</p>
+              {result.insights.length > 0 && (
+                <ul className="mt-1 list-disc pl-4">
+                  {result.insights.map((insight, j) => <li key={j}>{insight}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       );
     }
   }
 
-  // ─── generateArtifact: artifact card ───
-  if (part.toolName === 'generateArtifact') {
-    if (part.state === 'partial-call' || part.state === 'call') {
+  if (toolName === 'generateArtifact') {
+    if (part.state === 'input-streaming' || part.state === 'input-available') {
       return (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-1">
+        <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
           <span className="animate-pulse">●</span> Generating visualization...
         </div>
       );
     }
-    if (part.state === 'result') {
-      const result = part.result as ArtifactToolOutput;
+    if (part.state === 'output-available') {
+      const result = part.output as ArtifactToolOutput;
       return (
-        <div className="my-2 flex items-center gap-3 rounded-lg border bg-muted/30 p-3 hover:bg-muted/50 cursor-pointer transition-colors">
+        <div className="my-2 flex cursor-pointer items-center gap-3 rounded-lg border bg-muted/30 p-3 hover:bg-muted/50 transition-colors">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-            {/* Generic app/component icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="7" height="7" rx="1" />
               <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -1735,12 +1708,11 @@ Light theme, minimal and clean. No gradients, no glassmorphism, no heavy shadows
 
 ### Typography
 
-Three font families, each with a distinct role:
+Two font families:
 
 | Font           | Tailwind Class | Role      | Usage                                                                                 |
 | -------------- | -------------- | --------- | ------------------------------------------------------------------------------------- |
 | **Inter**      | `font-sans`    | Body / UI | All body text, headings, buttons, navigation, labels, inputs. Default for everything. |
-| **Manrope**    | `font-display` | Branding  | "Rebolt" wordmark in sidebar header and any brand-level display text. Weight 600–700. |
 | **Geist Mono** | `font-mono`    | Code      | Artifact code view (Sandpack editor), inline code references, file names.             |
 
 ```typescript
@@ -1749,10 +1721,6 @@ import { Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
-const manrope = localFont({
-  src: './fonts/manrope.woff2',
-  variable: '--font-display',
-});
 const geistMono = localFont({
   src: './fonts/geist-mono.woff2',
   variable: '--font-mono',
@@ -1769,11 +1737,11 @@ const geistMono = localFont({
 | Muted / secondary     | `text-sm text-muted-foreground`        | 400    |
 | Labels / captions     | `text-xs text-muted-foreground`        | 400    |
 | Sidebar nav items     | `text-sm font-medium`                  | 500    |
-| Brand wordmark        | `font-display text-base font-semibold` | 600    |
+| Brand wordmark        | SVG logo from `/public/branding/`      | —      |
 
 ### Color Palette
 
-Light theme only. Built on Shadcn/ui CSS variables with Tailwind v4. Neutral grays, soft blue accent.
+Light theme only. Built on Shadcn/ui CSS variables with Tailwind v4. Rebolt brand blue accent (#006AFE).
 
 ```css
 /* app/globals.css — Shadcn theme overrides (light only) */
@@ -1789,9 +1757,9 @@ Light theme only. Built on Shadcn/ui CSS variables with Tailwind v4. Neutral gra
 
   --border: 0 0% 90%; /* #E5E5E5 — light borders */
   --input: 0 0% 90%;
-  --ring: 217 91% 60%; /* Focus ring — blue */
+  --ring: 215 100% 50%; /* Focus ring — Rebolt blue */
 
-  --primary: 217 91% 60%; /* #3B82F6 — blue accent */
+  --primary: 215 100% 50%; /* #006AFE — Rebolt brand blue */
   --primary-foreground: 0 0% 100%;
 
   --secondary: 0 0% 96%;
@@ -1842,7 +1810,7 @@ Use Shadcn defaults. No custom component library. Key styling decisions:
 **Sidebar:**
 
 - `w-[280px] border-r bg-background`
-- Brand: `font-display font-semibold` "Rebolt" at top
+- Brand: SVG wordmark from `/public/branding/rebolt-wordmark-black.svg` at top
 - Section labels: `text-xs font-medium text-muted-foreground uppercase tracking-wider`
 - Nav items: `text-sm font-medium` with small icon (16px) + text. Hover: `bg-muted rounded-md`.
 - Active item: `text-primary font-medium` or `bg-primary/10`
@@ -1911,7 +1879,7 @@ All routes are wrapped in `withAuthHandler()`. Services return `Result<T, E>` �
 
 ### `POST /api/chat`
 
-Validates input with zod (`chatRequestSchema`). Fetches conversation ownership + file data in parallel via `Promise.all()`. Both return `Result` — route checks `.ok` before proceeding. Uses `streamText` with `gpt-4.1-mini` + `generateArtifact` tool. Tool's `execute()` internally calls `gpt-5.3-codex` for code generation. Streams via `toUIMessageStreamResponse()`.
+Validates `conversationId` with zod (`chatBodySchema`), extracts `messages` as `UIMessage[]`. Converts messages via `await convertToModelMessages(messages)`. Fetches conversation ownership + file data in parallel via `Promise.all()`. Both return `Result` — route checks `.ok` before proceeding. Uses `streamText` with `gpt-4.1-mini` + tools from `createChatTools()`. Tool's `execute()` internally calls `gpt-5.3-codex` for code generation. Streams via `toUIMessageStreamResponse()`.
 
 ### `POST /api/upload`
 
@@ -1974,7 +1942,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
    - withAuthHandler verifies auth + upserts user atomically
    - getConversation() + getConversationFileData() in parallel (Promise.all)
    - Both return Result — route checks .ok before proceeding
-   - gpt-4.1-mini receives analysis prompt + file context (maxSteps: 3)
+   - gpt-4.1-mini receives analysis prompt + file context (stopWhen: stepCountIs(3))
    - **Step 1**: Model calls analyzeData tool → examines columns, finds patterns
    - **Step 2**: Model reads analysis, calls generateArtifact with detailed description
    - Tool execute() calls gpt-5.3-codex → returns { title, code }
@@ -2121,18 +2089,24 @@ High-level modules don't depend on low-level implementations.
 
 ## 19. Key Implementation Notes
 
-### AI SDK Patterns (Latest API)
+### AI SDK v6 Patterns (Verified Against Docs)
 
 - Use `streamText` (not `generateText`) for chat responses — with `tools` for artifact generation
 - Use `toUIMessageStreamResponse()` (not `toDataStreamResponse()`)
 - Use `maxOutputTokens` (not `maxTokens`)
+- Use `stopWhen: stepCountIs(3)` (not `maxSteps: 3`) — import `stepCountIs` from `'ai'`
+- Server route must convert messages: `messages: await convertToModelMessages(messages)` — `UIMessage[]` has `parts`, NOT `content`
+- Validate only `conversationId` with zod (`chatBodySchema`); messages are `UIMessage[]` validated by `convertToModelMessages()`
 - Use `useChat` with manual `useState` for input (managed input is removed)
-- Use `DefaultChatTransport` for transport config
+- `useChat` returns `status` (`'ready' | 'submitted' | 'streaming' | 'error'`), NOT `isLoading` — derive: `status === 'submitted' || status === 'streaming'`
+- Use `DefaultChatTransport` from `'ai'` for transport config
 - Use `generateText` with `Output.object()` for structured outputs (not `generateObject`)
 - Use `tool()` with `inputSchema` (not `parameters`) for tool definitions
 - Use `generateText` inside tool `execute()` for multi-model routing (analysis model calls codegen model)
-- Render tool invocations via `message.parts` with `part.type === 'tool-invocation'` — check `part.state` for loading/result
-- Validate incoming request bodies with zod before passing to AI SDK
+- `UIMessage` has NO `content` field — only `parts` array. Import `UIMessage` from `'ai'`
+- Tool parts: `part.type` is `'tool-{toolName}'` (e.g., `'tool-generateArtifact'`), NOT `'tool-invocation'`
+- Tool states: `'input-streaming'`, `'input-available'`, `'output-available'`, `'output-error'` — NOT `'partial-call'`, `'call'`, `'result'`
+- Tool output: access via `part.output` (NOT `part.result`)
 - Model IDs centralized in `AI_MODELS` constant (`types/ai.ts`), not hardcoded in routes
 
 ### Drizzle ORM Patterns
@@ -2207,7 +2181,7 @@ Phase 2 — Core Chat
   10. Sidebar: list/create/delete conversations (SWR)
   11. types/ai.ts (AI_MODELS config, tool input/output types, AnalysisToolOutput)
   12. lib/system-prompt.ts (analysis + codegen prompt builders)
-  13. Chat API route: streamText + analyzeData + generateArtifact tools (maxSteps: 3)
+  13. Chat API route: streamText + analyzeData + generateArtifact tools (stopWhen: stepCountIs(3))
   14. Chat UI: useChat hook + MessageBubble (collapsible analysis, artifact card)
   15. services/messages.ts (persistence in transactions + updatedAt)
   16. Auto-title generation (gpt-5.4-nano via services/ai.ts)

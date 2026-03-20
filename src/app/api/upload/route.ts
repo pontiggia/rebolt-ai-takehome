@@ -40,7 +40,7 @@ export const POST = withAuthHandler(async (req, { user }) => {
   const parsed = parseFileContents(buffer, file.type);
   if (!parsed.ok) return errorResponse(parsed.error);
 
-  const blob = await put(file.name, file, { access: 'public' });
+  const blob = await put(file.name, file, { access: 'public', addRandomSuffix: true });
 
   const sampleData = parsed.value.rows.slice(0, FILE_LIMITS.sampleSize) as Record<string, unknown>[];
   const [fileRecord] = await db
