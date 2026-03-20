@@ -25,6 +25,7 @@ root.render(<App />);
 const CUSTOM_SETUP = {
   dependencies: {
     recharts: 'latest',
+    'lucide-react': 'latest',
     react: '^18.2.0',
     'react-dom': '^18.2.0',
     'react-is': '^18.2.0',
@@ -44,6 +45,7 @@ export function ArtifactSandpack({ files, view }: ArtifactSandpackProps) {
   const options = useMemo(
     () => ({
       activeFile: '/src/App.tsx' as string,
+      externalResources: ['https://cdn.tailwindcss.com'],
     }),
     [],
   );

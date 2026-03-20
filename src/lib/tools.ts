@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { generateText, tool } from 'ai';
+import { generateText, Output, tool } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod/v4';
 import type { FileDataContext } from '@/types/file';
@@ -44,7 +44,10 @@ function parseFilesFromResponse(text: string): Record<string, string> {
   }
 
   // Fallback: treat entire response as a single App.tsx file
-  const code = trimmed.replace(/^```[\w]*\n/, '').replace(/```$/, '').trim();
+  const code = trimmed
+    .replace(/^```[\w]*\n/, '')
+    .replace(/```$/, '')
+    .trim();
   return { '/src/App.tsx': code };
 }
 
@@ -67,11 +70,35 @@ export function createChatTools(fileData: FileDataContext | null) {
             Object.fromEntries(columns.map((col) => [col, row[col]])),
           ) ?? [];
 
+        const sampleValues = columnData.slice(0, 10);
+
+        const result = await generateText({
+          model: openai(AI_MODELS.title),
+          output: Output.object({
+            schema: z.object({
+              summary: z.string().describe('Brief summary of the data analysis'),
+              insights: z.array(z.string()).describe('Key patterns, trends, or notable findings'),
+              suggestedApproach: z.string().describe('Recommended visualization or UI approach'),
+            }),
+          }),
+          prompt: `Analyze this data for the task: "${task}"
+Focused columns: ${columns.join(', ')}
+Sample data (${sampleValues.length} rows):
+${JSON.stringify(sampleValues, null, 2)}
+
+${fileData ? `Full dataset has ${fileData.rowCount} rows and columns: ${fileData.columnNames.join(', ')}` : 'No file data available.'}
+
+Provide:
+1. A concise summary of what the data contains
+2. 2-4 specific insights (patterns, outliers, distributions, trends)
+3. A recommended approach for visualizing or representing this data`,
+        });
+
         return {
-          summary: `Analyzed ${columns.join(', ')} for: ${task}`,
-          insights: [],
-          suggestedApproach: '',
-          sampleValues: columnData.slice(0, 10),
+          summary: result.output?.summary ?? `Analyzed ${columns.join(', ')} for: ${task}`,
+          insights: result.output?.insights ?? [],
+          suggestedApproach: result.output?.suggestedApproach ?? '',
+          sampleValues,
         };
       },
     }),
