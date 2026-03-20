@@ -12,11 +12,17 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
     notFound();
   }
 
+  const userInitials = user.firstName
+    ? `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase()
+    : (user.email?.[0]?.toUpperCase() ?? 'U');
+
   return (
     <ChatPanel
       conversationId={conversationId}
       initialMessages={conversationDetail.value.messages}
       initialFiles={conversationDetail.value.files}
+      userInitials={userInitials}
+      userAvatarUrl={user.profilePictureUrl ?? null}
     />
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { withAuth, type NoUserInfo, type UserInfo } from '@workos-inc/authkit-nextjs';
 import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components';
-import { Inter, Manrope } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 
@@ -10,14 +10,8 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-const manrope = Manrope({
-  subsets: ['latin'],
-  variable: '--font-manrope',
-  weight: ['600', '700'],
-});
-
 export const metadata: Metadata = {
-  title: 'Rebolt AI',
+  title: 'Rebolt',
   description: 'Chat with your CSV/Excel data and generate interactive artifacts',
 };
 
@@ -42,7 +36,7 @@ export default async function RootLayout({
     : { user: null };
 
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable} ${GeistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${GeistMono.variable} h-full antialiased`}>
       <body suppressHydrationWarning className="min-h-full flex flex-col font-sans">
         <AuthKitProvider initialAuth={initialAuth}>{children}</AuthKitProvider>
       </body>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAppChat } from '@/hooks/use-app-chat';
 import { MessageBubble } from '@/components/message-bubble';
 import { MessageInput } from '@/components/message-input';
@@ -13,18 +13,32 @@ interface ChatPanelProps {
   readonly conversationId: string;
   readonly initialMessages: readonly MessageResponse[];
   readonly initialFiles: readonly FileMetadataResponse[];
+  readonly userInitials: string;
+  readonly userAvatarUrl: string | null;
 }
 
-export function ChatPanel({ conversationId, initialMessages, initialFiles }: ChatPanelProps) {
+export function ChatPanel({
+  conversationId,
+  initialMessages,
+  initialFiles,
+  userInitials,
+  userAvatarUrl,
+}: ChatPanelProps) {
   const chatMessages = initialMessages.map((message) => ({
     id: message.id,
     role: message.role,
     parts: message.parts,
   }));
-  const { messages, isLoading, input, setInput, handleSend, sendMessage, regenerate, error } = useAppChat(
-    conversationId,
-    chatMessages,
-  );
+  const {
+    messages,
+    isLoading,
+    input,
+    setInput,
+    handleSend: rawHandleSend,
+    sendMessage,
+    regenerate,
+    error,
+  } = useAppChat(conversationId, chatMessages);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredInitialReply = useRef(false);
   const needsInitialAssistantReply =
@@ -34,6 +48,30 @@ export function ChatPanel({ conversationId, initialMessages, initialFiles }: Cha
     error: null,
     retryCount: 0,
   });
+  const hasExistingFiles = initialMessages.length > 0 && initialFiles.length > 0;
+  const [filesSent, setFilesSent] = useState(hasExistingFiles);
+  const [fileSentAtIndex, setFileSentAtIndex] = useState<number | null>(null);
+  const pendingFileSendRef = useRef<number | null>(null);
+
+  const handleSend = useCallback(() => {
+    if (initialFiles.length > 0 && !filesSent) {
+      pendingFileSendRef.current = messages.length;
+      setFilesSent(true);
+    }
+    rawHandleSend();
+  }, [rawHandleSend, initialFiles.length, filesSent, messages.length]);
+
+  // Sync file-sent index after the new message appears in the array
+  useEffect(() => {
+    if (
+      pendingFileSendRef.current !== null &&
+      fileSentAtIndex === null &&
+      messages.length > pendingFileSendRef.current
+    ) {
+      setFileSentAtIndex(pendingFileSendRef.current);
+      pendingFileSendRef.current = null;
+    }
+  }, [messages.length, fileSentAtIndex]);
 
   // Derive latest artifact from typed tool parts
   let latestArtifact: ArtifactToolOutput | null = null;
@@ -76,9 +114,15 @@ export function ChatPanel({ conversationId, initialMessages, initialFiles }: Cha
     <div className="flex h-full">
       <div className="flex flex-1 flex-col">
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+          <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+            {messages.map((msg, idx) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                userInitials={userInitials}
+                userAvatarUrl={userAvatarUrl}
+                files={idx === fileSentAtIndex ? initialFiles : undefined}
+              />
             ))}
             {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -89,14 +133,16 @@ export function ChatPanel({ conversationId, initialMessages, initialFiles }: Cha
             <div ref={messagesEndRef} />
           </div>
         </div>
-        <MessageInput
-          input={input}
-          setInput={setInput}
-          handleSend={handleSend}
-          isLoading={isLoading}
-          conversationId={conversationId}
-          files={initialFiles}
-        />
+        <div className="mx-auto w-full max-w-3xl">
+          <MessageInput
+            input={input}
+            setInput={setInput}
+            handleSend={handleSend}
+            isLoading={isLoading}
+            conversationId={conversationId}
+            files={filesSent ? [] : initialFiles}
+          />
+        </div>
       </div>
       {latestArtifact && (
         <ArtifactPanel
