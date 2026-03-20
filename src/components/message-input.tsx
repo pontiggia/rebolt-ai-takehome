@@ -4,6 +4,7 @@ import { startTransition, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatInput } from '@/components/chat-input';
 import { FileUploadBadge } from '@/components/file-upload-badge';
+import { uploadFile } from '@/lib/api-client';
 import type { FileMetadataResponse } from '@/types/api';
 import { ALLOWED_FILE_TYPES } from '@/types/file';
 
@@ -29,15 +30,7 @@ export function MessageInput({ input, setInput, handleSend, isLoading, conversat
     setIsUploading(true);
     setUploadError(null);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('conversationId', conversationId);
-
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(payload?.message ?? 'Upload failed');
-      }
+      await uploadFile(conversationId, file);
 
       startTransition(() => {
         router.refresh();

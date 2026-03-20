@@ -6,6 +6,7 @@ import { startTransition, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ConversationItem } from '@/components/conversation-item';
 import { UserCard } from '@/components/user-card';
+import { removeConversation } from '@/actions/conversations';
 import type { ConversationSummary } from '@/types/api';
 
 interface SidebarProps {
@@ -30,17 +31,12 @@ export function Sidebar({ conversations, userName, userInitials }: SidebarProps)
     setDeletingId(id);
 
     try {
-      const res = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(payload?.message ?? 'Failed to delete conversation');
-      }
+      await removeConversation(id);
 
       startTransition(() => {
         if (activeId === id) {
           router.push('/chat');
         }
-        router.refresh();
       });
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to delete conversation');

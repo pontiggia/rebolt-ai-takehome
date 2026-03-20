@@ -1,14 +1,7 @@
-import { withAuth } from '@workos-inc/authkit-nextjs';
-import { redirect } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 
-export default async function Home() {
-  const { user } = await withAuth();
-
-  if (user) {
-    redirect('/chat');
-  }
-
+export default function Home() {
   return (
     <main className="flex min-h-screen flex-col bg-background">
       {/* Top bar */}
@@ -37,9 +30,9 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* CTA */}
-          <a
-            href="/auth/login"
+          {/* CTA — links to /chat, proxy handles auth redirect */}
+          <Link
+            href="/chat"
             className="mt-2 inline-flex items-center gap-2.5 rounded-full bg-[#0D0E10] px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-[#0D0E10]/90"
           >
             Get started
@@ -52,7 +45,7 @@ export default async function Home() {
                 strokeLinejoin="round"
               />
             </svg>
-          </a>
+          </Link>
 
           {/* Disclaimer */}
           <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
