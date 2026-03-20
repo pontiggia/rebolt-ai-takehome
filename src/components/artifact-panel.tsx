@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ArtifactPanelProps } from '@/types/components';
-import { MAX_ARTIFACT_RETRIES } from '@/types/chat';
+import { MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
 
 const ArtifactSandpack = dynamic(() => import('./artifact-sandpack').then((m) => m.ArtifactSandpack), {
   ssr: false,
@@ -22,15 +22,70 @@ function EmptyArtifactState() {
   );
 }
 
-export function ArtifactPanel({ title, files, error, retryCount, onFixError, onClose }: ArtifactPanelProps) {
+function ArtifactStatusFooter({
+  runtimeState,
+  isRetryDisabled,
+  onManualRetry,
+}: Pick<ArtifactPanelProps, 'runtimeState' | 'isRetryDisabled' | 'onManualRetry'>) {
+  if (runtimeState.status === 'idle') {
+    return null;
+  }
+
+  if (runtimeState.status === 'retrying') {
+    return (
+      <div className="border-t bg-muted/30 px-3 py-2">
+        <p className="text-sm font-medium">
+          Self-correcting (attempt {runtimeState.retryCount}/{MAX_ARTIFACT_AUTO_RETRIES})...
+        </p>
+        {runtimeState.lastError && <p className="mt-1 text-xs text-muted-foreground">{runtimeState.lastError}</p>}
+      </div>
+    );
+  }
+
+  if (!runtimeState.lastError) {
+    return null;
+  }
+
+  return (
+    <div className="border-t p-3">
+      <p className="mb-2 text-sm text-destructive">{runtimeState.lastError}</p>
+      {runtimeState.status === 'exhausted' && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Automatic retries are exhausted. You can try one more manual correction cycle.
+        </p>
+      )}
+      <button
+        onClick={onManualRetry}
+        disabled={isRetryDisabled}
+        className={cn(
+          'rounded-md px-3 py-1.5 text-sm transition-colors',
+          isRetryDisabled
+            ? 'cursor-not-allowed bg-muted text-muted-foreground'
+            : 'bg-destructive/10 text-destructive hover:bg-destructive/20',
+        )}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+export function ArtifactPanel({
+  artifact,
+  runtimeState,
+  isRetryDisabled,
+  onManualRetry,
+  onRuntimeEvent,
+  onClose,
+}: ArtifactPanelProps) {
   const [view, setView] = useState<ArtifactView>('preview');
 
-  if (!files || Object.keys(files).length === 0) return <EmptyArtifactState />;
+  if (!artifact.files || Object.keys(artifact.files).length === 0) return <EmptyArtifactState />;
 
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2">
-        <span className="truncate text-sm font-medium">{title ?? 'Artifact'}</span>
+        <span className="truncate text-sm font-medium">{artifact.title ?? 'Artifact'}</span>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
             <button
@@ -63,23 +118,19 @@ export function ArtifactPanel({ title, files, error, retryCount, onFixError, onC
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ArtifactSandpack files={files} view={view} />
+        <ArtifactSandpack
+          artifactKey={artifact.key}
+          files={artifact.files}
+          view={view}
+          onRuntimeEvent={onRuntimeEvent}
+        />
       </div>
 
-      {error && retryCount < MAX_ARTIFACT_RETRIES && (
-        <div className="border-t p-3">
-          <p className="mb-2 text-sm text-destructive">{error}</p>
-          <button
-            onClick={onFixError}
-            className="rounded-md bg-destructive/10 px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/20"
-          >
-            Fix Error
-          </button>
-        </div>
-      )}
-      {error && retryCount >= MAX_ARTIFACT_RETRIES && (
-        <p className="p-3 text-sm text-muted-foreground">Max retries reached. Please clarify your request.</p>
-      )}
+      <ArtifactStatusFooter
+        runtimeState={runtimeState}
+        isRetryDisabled={isRetryDisabled}
+        onManualRetry={onManualRetry}
+      />
     </div>
   );
 }
