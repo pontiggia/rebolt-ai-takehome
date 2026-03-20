@@ -1,6 +1,6 @@
 export const AI_MODELS = {
-  analysis: 'gpt-4.1-mini',
-  codegen: 'gpt-5.3-codex',
+  analysis: 'gpt-4.1',
+  codegen: 'gpt-5.4-mini',
   title: 'gpt-5.4-nano',
 } as const;
 
@@ -10,11 +10,12 @@ export interface AnalysisToolOutput {
   readonly summary: string;
   readonly insights: readonly string[];
   readonly suggestedApproach: string;
+  readonly sampleValues: readonly Record<string, unknown>[];
 }
 
 export interface ArtifactToolOutput {
   readonly title: string;
-  readonly code: string;
+  readonly files: Readonly<Record<string, string>>;
 }
 
 export interface ArtifactToolInput {

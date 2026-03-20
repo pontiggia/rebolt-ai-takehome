@@ -7,7 +7,7 @@ import type { ArtifactState } from '@/types/chat';
 
 export function useArtifact(messages: UIMessage[], sendMessage: (options: { text: string }) => void) {
   const [artifactState, setArtifactState] = useState<ArtifactState>({
-    code: null,
+    files: null,
     error: null,
     retryCount: 0,
   });

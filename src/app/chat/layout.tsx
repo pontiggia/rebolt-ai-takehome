@@ -23,7 +23,7 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
   return (
     <div className="flex h-screen">
       <Sidebar conversations={conversations} userName={userName} userInitials={userInitials} />
-      <main className="flex-1">{children}</main>
+      <main className="min-h-0 flex-1">{children}</main>
     </div>
   );
 }

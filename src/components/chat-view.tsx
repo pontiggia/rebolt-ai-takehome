@@ -7,9 +7,11 @@ import { useFileUpload } from '@/hooks/use-file-upload';
 import { useSentFiles } from '@/hooks/use-sent-files';
 import { useAutoReply } from '@/hooks/use-auto-reply';
 import { useArtifact } from '@/hooks/use-artifact';
+import { useArtifactPanel } from '@/hooks/use-artifact-panel';
 import { MessageBubble } from '@/components/message-bubble';
 import { ComposerInput } from '@/components/composer-input';
 import { ArtifactPanel } from '@/components/artifact-panel';
+import { ResizeHandle } from '@/components/resize-handle';
 import type { FileMetadataResponse, MessageResponse } from '@/types/api';
 
 interface ChatViewProps {
@@ -51,6 +53,8 @@ export function ChatView({
 
   const { sentFilesMap, trackFiles } = useSentFiles(messages.length);
   const { latestArtifact, artifactState, handleFixError } = useArtifact(messages, sendMessage);
+  const { isOpen, setIsOpen, panelWidth, containerRef, handleResizeStart, handleResizeMove, handleResizeEnd } =
+    useArtifactPanel(latestArtifact);
 
   useAutoReply({
     propsConversationId,
@@ -114,9 +118,11 @@ export function ChatView({
     );
   }
 
+  const showPanel = latestArtifact && isOpen;
+
   return (
     <div className="flex h-full">
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
             {messages.map((msg, idx) => (
@@ -126,6 +132,7 @@ export function ChatView({
                 userInitials={userInitials}
                 userAvatarUrl={userAvatarUrl}
                 files={sentFilesMap.get(idx)}
+                onArtifactClick={() => setIsOpen(true)}
               />
             ))}
             {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
@@ -139,14 +146,22 @@ export function ChatView({
         </div>
         <div className="mx-auto w-full max-w-3xl px-4 pb-4">{composerInput}</div>
       </div>
-      {latestArtifact && (
-        <ArtifactPanel
-          title={latestArtifact.title}
-          code={latestArtifact.code}
-          error={artifactState.error}
-          retryCount={artifactState.retryCount}
-          onFixError={handleFixError}
-        />
+      {showPanel && (
+        <div ref={containerRef} className="relative flex h-full flex-col border-l" style={{ width: panelWidth }}>
+          <ResizeHandle
+            onResizeStart={handleResizeStart}
+            onResizeMove={handleResizeMove}
+            onResizeEnd={handleResizeEnd}
+          />
+          <ArtifactPanel
+            title={latestArtifact.title}
+            files={latestArtifact.files}
+            error={artifactState.error}
+            retryCount={artifactState.retryCount}
+            onFixError={handleFixError}
+            onClose={() => setIsOpen(false)}
+          />
+        </div>
       )}
     </div>
   );

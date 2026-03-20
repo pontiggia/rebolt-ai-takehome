@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import type { AnalysisToolOutput, ArtifactToolOutput } from '@/types/ai';
+import type { AnalysisToolOutput, ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ToolInvocationPart({ toolName, part }: { toolName: string; part: any }) {
+export function ToolInvocationPart({
+  toolName,
+  part,
+  onArtifactClick,
+}: {
+  toolName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  part: any;
+  onArtifactClick?: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   if (toolName === 'analyzeData') {
@@ -52,44 +60,63 @@ export function ToolInvocationPart({ toolName, part }: { toolName: string; part:
     }
     if (part.state === 'output-available') {
       const result = part.output as ArtifactToolOutput;
+      const input = part.input as ArtifactToolInput;
       return (
-        <div className="my-3 flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <div>
+          <div
+            onClick={onArtifactClick}
+            className="my-3 flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-foreground"
+              >
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                <path d="M10 13h4" />
+                <path d="M10 17h4" />
+                <path d="M10 9h1" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{result.title}</p>
+              <p className="text-xs text-muted-foreground">Interactive artifact</p>
+            </div>
             <svg
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-foreground"
+              className="shrink-0 text-muted-foreground"
             >
-              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-              <path d="M10 13h4" />
-              <path d="M10 17h4" />
-              <path d="M10 9h1" />
+              <path d="m9 18 6-6-6-6" />
             </svg>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">{result.title}</p>
-            <p className="text-xs text-muted-foreground">Interactive artifact</p>
-          </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-muted-foreground"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
+          {input?.description && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-sm text-muted-foreground/70 transition-colors hover:text-muted-foreground"
+            >
+              {expanded ? '▾' : '▸'} Instructions sent to code generator
+            </button>
+          )}
+          {expanded && input?.description && (
+            <div className="mt-1 border-l-2 border-muted pl-4 text-sm text-muted-foreground">
+              <p>{input.description}</p>
+            </div>
+          )}
         </div>
       );
     }

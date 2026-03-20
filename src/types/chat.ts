@@ -4,7 +4,7 @@ export type PersistedChatMessage = UIMessage;
 export type PersistedChatParts = PersistedChatMessage['parts'];
 
 export interface ArtifactState {
-  readonly code: string | null;
+  readonly files: Readonly<Record<string, string>> | null;
   readonly error: string | null;
   readonly retryCount: number;
 }
