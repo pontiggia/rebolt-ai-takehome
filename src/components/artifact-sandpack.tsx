@@ -1,16 +1,21 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import {
   SandpackProvider,
   SandpackPreview,
   SandpackCodeEditor,
   SandpackFileExplorer,
+  useSandpack,
 } from '@codesandbox/sandpack-react';
+import { ARTIFACT_SANDBOX_SETUP } from '@/lib/artifact-runtime';
+import type { ArtifactRuntimeEvent } from '@/types/chat';
 
 interface ArtifactSandpackProps {
+  readonly artifactKey: string;
   readonly files: Readonly<Record<string, string>>;
   readonly view: 'preview' | 'code';
+  readonly onRuntimeEvent: (event: ArtifactRuntimeEvent) => void;
 }
 
 const ENTRY_FILE = `
@@ -22,17 +27,64 @@ const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
 `;
 
-const CUSTOM_SETUP = {
-  dependencies: {
-    recharts: 'latest',
-    'lucide-react': 'latest',
-    react: '^18.2.0',
-    'react-dom': '^18.2.0',
-    'react-is': '^18.2.0',
-  },
-};
+function getSandpackErrorMessage(
+  message: Partial<Record<'message' | 'title' | 'description', unknown>>,
+  fallback: string,
+): string {
+  const candidates = [message.message, message.title, message.description];
 
-export function ArtifactSandpack({ files, view }: ArtifactSandpackProps) {
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function SandpackRuntimeBridge({ onRuntimeEvent }: Pick<ArtifactSandpackProps, 'onRuntimeEvent'>) {
+  const { sandpack, listen } = useSandpack();
+  const emitRuntimeEvent = useEffectEvent(onRuntimeEvent);
+
+  useEffect(() => {
+    const unsubscribe = listen((message) => {
+      if ((message.type === 'done' && !message.compilatonError) || message.type === 'connected') {
+        emitRuntimeEvent({ type: 'ready' });
+        return;
+      }
+
+      if (message.type === 'action' && message.action === 'show-error') {
+        emitRuntimeEvent({
+          type: 'runtime-error',
+          message: getSandpackErrorMessage(message, 'The artifact preview threw an error.'),
+        });
+        return;
+      }
+
+      if (message.type === 'action' && message.action === 'notification' && message.notificationType === 'error') {
+        emitRuntimeEvent({
+          type: 'notification-error',
+          message: getSandpackErrorMessage(message, 'Sandpack reported a preview error.'),
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [listen]);
+
+  useEffect(() => {
+    if (sandpack.status === 'timeout') {
+      emitRuntimeEvent({
+        type: 'timeout',
+        message: 'The artifact preview timed out before it finished compiling or rendering.',
+      });
+    }
+  }, [sandpack.status]);
+
+  return null;
+}
+
+export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: ArtifactSandpackProps) {
   const sandpackFiles = useMemo(() => {
     const result: Record<string, string | { code: string; hidden?: boolean }> = {};
     for (const [path, content] of Object.entries(files)) {
@@ -52,7 +104,14 @@ export function ArtifactSandpack({ files, view }: ArtifactSandpackProps) {
 
   return (
     <div className="artifact-sandpack h-full">
-      <SandpackProvider template="react-ts" files={sandpackFiles} customSetup={CUSTOM_SETUP} options={options}>
+      <SandpackProvider
+        key={artifactKey}
+        template="react-ts"
+        files={sandpackFiles}
+        customSetup={ARTIFACT_SANDBOX_SETUP}
+        options={options}
+      >
+        <SandpackRuntimeBridge onRuntimeEvent={onRuntimeEvent} />
         <div style={{ display: view === 'preview' ? 'block' : 'none', height: '100%' }}>
           <SandpackPreview showOpenInCodeSandbox={false} showRefreshButton={true} style={{ height: '100%' }} />
         </div>
