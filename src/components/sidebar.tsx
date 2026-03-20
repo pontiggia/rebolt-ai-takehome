@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { startTransition, useState } from 'react';
+import { startTransition, useCallback, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ConversationItem } from '@/components/conversation-item';
 import { UserCard } from '@/components/user-card';
@@ -13,9 +13,10 @@ interface SidebarProps {
   readonly conversations: readonly ConversationSummary[];
   readonly userName: string;
   readonly userInitials: string;
+  readonly userAvatarUrl?: string | null;
 }
 
-export function Sidebar({ conversations, userName, userInitials }: SidebarProps) {
+export function Sidebar({ conversations, userName, userInitials, userAvatarUrl }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -23,6 +24,11 @@ export function Sidebar({ conversations, userName, userInitials }: SidebarProps)
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : null;
+
+  const navigateToNewChat = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = '/chat';
+  }, []);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,7 +59,7 @@ export function Sidebar({ conversations, userName, userInitials }: SidebarProps)
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-5">
         {!collapsed && (
-          <Link href="/chat">
+          <Link href="/chat" onClick={navigateToNewChat}>
             <Image
               src="/branding/rebolt-wordmark-black.svg"
               alt="Rebolt"
@@ -93,6 +99,7 @@ export function Sidebar({ conversations, userName, userInitials }: SidebarProps)
       <div className="px-3 pb-2">
         <Link
           href="/chat"
+          onClick={navigateToNewChat}
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           title="New Chat"
         >
@@ -138,7 +145,7 @@ export function Sidebar({ conversations, userName, userInitials }: SidebarProps)
         )}
       </div>
 
-      <UserCard name={userName} initials={userInitials} collapsed={collapsed} />
+      <UserCard name={userName} initials={userInitials} avatarUrl={userAvatarUrl} collapsed={collapsed} />
     </aside>
   );
 }

@@ -1,21 +1,50 @@
 'use client';
 
+import Image from 'next/image';
+
 interface UserCardProps {
   readonly name: string;
   readonly initials: string;
+  readonly avatarUrl?: string | null;
   readonly collapsed?: boolean;
 }
 
-export function UserCard({ name, initials, collapsed }: UserCardProps) {
+function Avatar({
+  name,
+  initials,
+  avatarUrl,
+  size = 32,
+}: {
+  name: string;
+  initials: string;
+  avatarUrl?: string | null;
+  size?: number;
+}) {
+  if (avatarUrl) {
+    return (
+      <Image
+        src={avatarUrl}
+        alt=""
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full"
+        style={{ width: size, height: size }}
+        unoptimized
+      />
+    );
+  }
+  return (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
+      {initials}
+    </div>
+  );
+}
+
+export function UserCard({ name, initials, avatarUrl, collapsed }: UserCardProps) {
   if (collapsed) {
     return (
       <div className="flex justify-center p-3">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background"
-          title={name}
-        >
-          {initials}
-        </div>
+        <Avatar name={name} initials={initials} avatarUrl={avatarUrl} />
       </div>
     );
   }
@@ -23,9 +52,7 @@ export function UserCard({ name, initials, collapsed }: UserCardProps) {
   return (
     <div className="p-3">
       <div className="flex items-center gap-3 rounded-xl border bg-background px-3 py-2.5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">
-          {initials}
-        </div>
+        <Avatar name={name} initials={initials} avatarUrl={avatarUrl} />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
         <button
           type="button"

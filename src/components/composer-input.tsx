@@ -1,6 +1,6 @@
 'use client';
 
-import type { RefObject } from 'react';
+import { type RefObject, useCallback, useRef, useState } from 'react';
 import { ChatInput } from '@/components/chat-input';
 import { FileUploadBadge } from '@/components/file-upload-badge';
 import type { FileMetadataResponse } from '@/types/api';
@@ -34,6 +34,51 @@ export function ComposerInput({
   allowedFileTypes,
   className,
 }: ComposerInputProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current = 0;
+      setIsDragging(false);
+
+      const droppedFiles = e.dataTransfer.files;
+      if (droppedFiles.length === 0) return;
+
+      const fileInput = fileInputRef.current;
+      if (!fileInput) return;
+
+      const dt = new DataTransfer();
+      for (const file of Array.from(droppedFiles)) {
+        dt.items.add(file);
+      }
+      fileInput.files = dt.files;
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+    [fileInputRef],
+  );
+
   return (
     <div className={className}>
       {pendingFiles.length > 0 && (
@@ -53,7 +98,13 @@ export function ComposerInput({
         className="hidden"
       />
 
-      <ChatInput>
+      <ChatInput
+        className={isDragging ? 'ring-2 ring-primary/50' : ''}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <ChatInput.Toolbar
           left={<ChatInput.AttachButton onClick={onAttachClick} isUploading={isUploading} />}
           right={

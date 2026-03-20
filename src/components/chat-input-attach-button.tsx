@@ -11,7 +11,7 @@ export function AttachButton({ onClick, isUploading }: AttachButtonProps) {
       type="button"
       onClick={onClick}
       disabled={isUploading}
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-50"
     >
       {isUploading ? (
         <svg
