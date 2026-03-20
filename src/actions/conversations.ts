@@ -2,7 +2,6 @@
 
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { db } from '@/db/client';
 import { conversations } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
@@ -45,16 +44,15 @@ export async function createConversation(
   }
 
   const uiMessage = createTextUserMessage(message);
-  await createInitialUserMessage(conversationId, uiMessage);
 
-  after(async () => {
-    try {
-      const title = await generateTitle(message);
-      await db.update(conversations).set({ title }).where(eq(conversations.id, conversationId));
-    } catch {
-      // Fall back to the default title if title generation fails.
-    }
-  });
+  const [, title] = await Promise.all([
+    createInitialUserMessage(conversationId, uiMessage),
+    generateTitle(message).catch(() => null),
+  ]);
+
+  if (title) {
+    await db.update(conversations).set({ title }).where(eq(conversations.id, conversationId));
+  }
 
   revalidatePath('/chat');
   return { id: conversationId, messageId: uiMessage.id };
