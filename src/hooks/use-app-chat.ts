@@ -5,20 +5,23 @@ import type { UIMessage } from 'ai';
 import { DefaultChatTransport } from 'ai';
 import { useState } from 'react';
 
-export function useAppChat(conversationId: string, initialMessages: UIMessage[]) {
+const PLACEHOLDER_ID = '__pending__';
+
+export function useAppChat(conversationId: string | null, initialMessages: UIMessage[]) {
   const [input, setInput] = useState('');
+  const effectiveId = conversationId ?? PLACEHOLDER_ID;
 
   const chat = useChat({
-    id: conversationId,
+    id: effectiveId,
     messages: initialMessages,
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      body: { conversationId },
+      body: { conversationId: effectiveId },
     }),
   });
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !conversationId) return;
     chat.sendMessage({ text: input });
     setInput('');
   };
