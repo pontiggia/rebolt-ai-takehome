@@ -7,48 +7,98 @@ import type { FileDataContext } from '@/types/file';
 import { buildCodegenPrompt } from '@/lib/system-prompt';
 import { AI_MODELS } from '@/types/ai';
 
+function parseArtifactFilesObject(value: unknown): Record<string, string> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate =
+    'files' in value && value.files && typeof value.files === 'object' && !Array.isArray(value.files)
+      ? value.files
+      : value;
+
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    return null;
+  }
+
+  const entries = Object.entries(candidate);
+  if (!entries.every((entry) => typeof entry[1] === 'string')) {
+    return null;
+  }
+
+  return Object.fromEntries(entries) as Record<string, string>;
+}
+
+function tryParseFilesJson(text: string): Record<string, string> | null {
+  try {
+    return parseArtifactFilesObject(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonFence(text: string): string | null {
+  const match = /```(?:json)?\s*\n([\s\S]*?)\n```/i.exec(text);
+  return match?.[1] ?? null;
+}
+
+function extractSingleFileFallback(text: string): Record<string, string> | null {
+  const match = /^```(?:tsx|jsx|ts|js|typescript|javascript)\s*\n([\s\S]*?)\n```$/i.exec(text);
+  if (!match) {
+    return null;
+  }
+
+  const code = match[1].trim();
+  if (!code) {
+    throw new Error('Artifact code block was empty.');
+  }
+
+  return { '/src/App.tsx': code };
+}
+
+function validateArtifactFiles(files: Record<string, string>): Record<string, string> {
+  const entries = Object.entries(files).map(([path, content]) => [path.trim(), content] as const);
+
+  if (entries.length === 0) {
+    throw new Error('Code generator output did not include any files.');
+  }
+
+  for (const [path, content] of entries) {
+    if (!path.startsWith('/src/')) {
+      throw new Error(`Invalid artifact file path "${path}". All files must live under /src/.`);
+    }
+
+    if (!content.trim()) {
+      throw new Error(`Artifact file "${path}" was empty.`);
+    }
+  }
+
+  if (!entries.some(([path]) => path === '/src/App.tsx')) {
+    throw new Error('Code generator output must include /src/App.tsx.');
+  }
+
+  return Object.fromEntries(entries);
+}
+
 function parseFilesFromResponse(text: string): Record<string, string> {
   const trimmed = text.trim();
 
-  // Try parsing as raw JSON first (model may output clean JSON)
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed.files && typeof parsed.files === 'object') {
-      return parsed.files as Record<string, string>;
-    }
-    // Model returned a flat record directly
-    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const keys = Object.keys(parsed);
-      if (keys.length > 0 && keys[0].startsWith('/')) {
-        return parsed as Record<string, string>;
-      }
-    }
-  } catch {
-    // Not raw JSON — try extracting from markdown fences
-  }
-
-  // Try extracting JSON from markdown code fences
-  const fenceMatch = /```(?:json)?\s*\n([\s\S]*?)```/.exec(trimmed);
-  if (fenceMatch) {
-    try {
-      const parsed = JSON.parse(fenceMatch[1]);
-      if (parsed.files && typeof parsed.files === 'object') {
-        return parsed.files as Record<string, string>;
-      }
-      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as Record<string, string>;
-      }
-    } catch {
-      // Malformed JSON inside fence
+  const jsonCandidates = [trimmed, extractJsonFence(trimmed)].filter((candidate): candidate is string =>
+    Boolean(candidate),
+  );
+  for (const candidate of jsonCandidates) {
+    const files = tryParseFilesJson(candidate);
+    if (files) {
+      return validateArtifactFiles(files);
     }
   }
 
-  // Fallback: treat entire response as a single App.tsx file
-  const code = trimmed
-    .replace(/^```[\w]*\n/, '')
-    .replace(/```$/, '')
-    .trim();
-  return { '/src/App.tsx': code };
+  const singleFile = extractSingleFileFallback(trimmed);
+  if (singleFile) {
+    return validateArtifactFiles(singleFile);
+  }
+
+  throw new Error('Code generator output must be a JSON object with a `files` field or a single fenced TSX/JSX file.');
 }
 
 export function createChatTools(fileData: FileDataContext | null) {
