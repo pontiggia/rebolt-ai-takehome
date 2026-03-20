@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import type { ChatOnFinishCallback, UIMessage } from 'ai';
 import { useAppChat } from '@/hooks/use-app-chat';
 import { useConversation } from '@/hooks/use-conversation';
 import { useFileUpload } from '@/hooks/use-file-upload';
@@ -30,17 +31,33 @@ export function ChatView({
   initialFiles = [],
 }: ChatViewProps) {
   const conversation = useConversation({ propsConversationId, initialMessages });
+  type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
+  const artifactRequestCallbacksRef = useRef<{
+    onError?: (error: Error) => void;
+    onFinish?: (event: ChatFinishEvent) => void;
+  }>({});
+
+  const relayArtifactError = useCallback((nextError: Error) => {
+    artifactRequestCallbacksRef.current.onError?.(nextError);
+  }, []);
+
+  const relayArtifactFinish = useCallback((event: ChatFinishEvent) => {
+    artifactRequestCallbacksRef.current.onFinish?.(event);
+  }, []);
 
   const {
     messages,
+    status,
     isLoading,
     input,
     setInput,
     handleSend: rawHandleSend,
-    sendMessage,
     regenerate,
     error,
-  } = useAppChat(conversation.chatConversationId, conversation.chatMessages);
+  } = useAppChat(conversation.chatConversationId, conversation.chatMessages, {
+    onError: relayArtifactError,
+    onFinish: relayArtifactFinish,
+  });
 
   const hasExistingFiles = initialMessages.length > 0 && initialFiles.length > 0;
   const [initialFilesSent, setInitialFilesSent] = useState(hasExistingFiles);
@@ -52,9 +69,29 @@ export function ChatView({
   });
 
   const { sentFilesMap, trackFiles } = useSentFiles(messages.length);
-  const { latestArtifact, artifactState, handleFixError } = useArtifact(messages, sendMessage);
+  const {
+    activeArtifact,
+    runtimeState,
+    handleManualRetry,
+    handleRuntimeEvent,
+    handleRequestError,
+    handleRequestFinish,
+    resetRuntimeState,
+  } = useArtifact({
+    messages,
+    conversationId: conversation.chatConversationId,
+    chatStatus: status,
+    regenerate,
+  });
   const { isOpen, setIsOpen, panelWidth, containerRef, handleResizeStart, handleResizeMove, handleResizeEnd } =
-    useArtifactPanel(latestArtifact);
+    useArtifactPanel(activeArtifact);
+
+  useEffect(() => {
+    artifactRequestCallbacksRef.current = {
+      onError: handleRequestError,
+      onFinish: handleRequestFinish,
+    };
+  }, [handleRequestError, handleRequestFinish]);
 
   useAutoReply({
     propsConversationId,
@@ -94,7 +131,12 @@ export function ChatView({
       fileUpload.clearFiles();
     }
     rawHandleSend();
-  }, [conversation, input, fileUpload, messages.length, rawHandleSend, setInput, trackFiles]);
+  }, [conversation, input, fileUpload, messages.length, rawHandleSend, trackFiles]);
+
+  const handleCloseArtifactPanel = useCallback(() => {
+    resetRuntimeState();
+    setIsOpen(false);
+  }, [resetRuntimeState, setIsOpen]);
 
   const composerInput = (
     <ComposerInput
@@ -124,7 +166,7 @@ export function ChatView({
     );
   }
 
-  const showPanel = latestArtifact && isOpen;
+  const showPanel = activeArtifact !== null && isOpen;
 
   const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
   const showThinking =
@@ -161,7 +203,7 @@ export function ChatView({
         </div>
         <div className="mx-auto w-full max-w-3xl px-4 pb-4">{composerInput}</div>
       </div>
-      {showPanel && (
+      {showPanel && activeArtifact && (
         <div ref={containerRef} className="relative flex h-full flex-col border-l" style={{ width: panelWidth }}>
           <ResizeHandle
             onResizeStart={handleResizeStart}
@@ -169,12 +211,12 @@ export function ChatView({
             onResizeEnd={handleResizeEnd}
           />
           <ArtifactPanel
-            title={latestArtifact.title}
-            files={latestArtifact.files}
-            error={artifactState.error}
-            retryCount={artifactState.retryCount}
-            onFixError={handleFixError}
-            onClose={() => setIsOpen(false)}
+            artifact={activeArtifact}
+            runtimeState={runtimeState}
+            isRetryDisabled={status !== 'ready'}
+            onManualRetry={handleManualRetry}
+            onRuntimeEvent={handleRuntimeEvent}
+            onClose={handleCloseArtifactPanel}
           />
         </div>
       )}

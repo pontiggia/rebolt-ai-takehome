@@ -1,24 +1,36 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
-import type { ArtifactToolOutput } from '@/types/ai';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import type { ActiveArtifact } from '@/types/chat';
 
 const MIN_PANEL_WIDTH = 300;
 const MAX_PANEL_RATIO = 0.7;
 
-export function useArtifactPanel(latestArtifact: ArtifactToolOutput | null) {
+export function useArtifactPanel(latestArtifact: ActiveArtifact | null) {
   const [isOpen, setIsOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(() =>
     typeof window !== 'undefined' ? Math.round(window.innerWidth * 0.5) : 600,
   );
 
-  const [lastSeenArtifact, setLastSeenArtifact] = useState<ArtifactToolOutput | null>(null);
-  if (latestArtifact && latestArtifact !== lastSeenArtifact) {
-    setLastSeenArtifact(latestArtifact);
-    if (!isOpen) {
-      setIsOpen(true);
+  const lastSeenArtifactKeyRef = useRef<string | null>(latestArtifact?.key ?? null);
+  useEffect(() => {
+    if (!latestArtifact || lastSeenArtifactKeyRef.current === latestArtifact.key) {
+      return;
     }
-  }
+
+    let cancelled = false;
+    lastSeenArtifactKeyRef.current = latestArtifact.key;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsOpen(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latestArtifact]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panelWidthRef = useRef(panelWidth);
