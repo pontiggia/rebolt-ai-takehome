@@ -1,19 +1,30 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import type { UIMessage } from 'ai';
+import type { ChatOnErrorCallback, ChatOnFinishCallback, UIMessage } from 'ai';
 import { DefaultChatTransport } from 'ai';
 import { useState } from 'react';
 
 const PLACEHOLDER_ID = '__pending__';
 
-export function useAppChat(conversationId: string | null, initialMessages: UIMessage[]) {
+interface UseAppChatOptions {
+  readonly onError?: ChatOnErrorCallback;
+  readonly onFinish?: ChatOnFinishCallback<UIMessage>;
+}
+
+export function useAppChat(
+  conversationId: string | null,
+  initialMessages: UIMessage[],
+  options: UseAppChatOptions = {},
+) {
   const [input, setInput] = useState('');
   const effectiveId = conversationId ?? PLACEHOLDER_ID;
 
   const chat = useChat({
     id: effectiveId,
     messages: initialMessages,
+    onError: options.onError,
+    onFinish: options.onFinish,
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: { conversationId: effectiveId },
@@ -34,6 +45,7 @@ export function useAppChat(conversationId: string | null, initialMessages: UIMes
     isLoading,
     sendMessage: chat.sendMessage,
     regenerate: chat.regenerate,
+    clearError: chat.clearError,
     error: chat.error,
     input,
     setInput,
