@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { ChatPanel } from '@/components/chat-panel';
+import { ChatView } from '@/components/chat-view';
 import { getCurrentUser } from '@/lib/auth';
 import { getConversationDetail } from '@/services/conversations';
 
@@ -17,7 +17,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
     : (user.email?.[0]?.toUpperCase() ?? 'U');
 
   return (
-    <ChatPanel
+    <ChatView
       conversationId={conversationId}
       initialMessages={conversationDetail.value.messages}
       initialFiles={conversationDetail.value.files}

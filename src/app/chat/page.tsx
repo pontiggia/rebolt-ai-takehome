@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/lib/auth';
-import { ChatEmptyState } from '@/components/chat-empty-state';
+import { ChatView } from '@/components/chat-view';
 
 export default async function ChatPage() {
   const user = await getCurrentUser();
@@ -8,5 +8,5 @@ export default async function ChatPage() {
     ? `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : (user.email?.[0]?.toUpperCase() ?? 'U');
 
-  return <ChatEmptyState userInitials={userInitials} userAvatarUrl={user.profilePictureUrl ?? null} />;
+  return <ChatView userInitials={userInitials} userAvatarUrl={user.profilePictureUrl ?? null} />;
 }
