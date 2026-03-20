@@ -7,6 +7,47 @@ import type { FileDataContext } from '@/types/file';
 import { buildCodegenPrompt } from '@/lib/system-prompt';
 import { AI_MODELS } from '@/types/ai';
 
+function parseFilesFromResponse(text: string): Record<string, string> {
+  const trimmed = text.trim();
+
+  // Try parsing as raw JSON first (model may output clean JSON)
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed.files && typeof parsed.files === 'object') {
+      return parsed.files as Record<string, string>;
+    }
+    // Model returned a flat record directly
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const keys = Object.keys(parsed);
+      if (keys.length > 0 && keys[0].startsWith('/')) {
+        return parsed as Record<string, string>;
+      }
+    }
+  } catch {
+    // Not raw JSON — try extracting from markdown fences
+  }
+
+  // Try extracting JSON from markdown code fences
+  const fenceMatch = /```(?:json)?\s*\n([\s\S]*?)```/.exec(trimmed);
+  if (fenceMatch) {
+    try {
+      const parsed = JSON.parse(fenceMatch[1]);
+      if (parsed.files && typeof parsed.files === 'object') {
+        return parsed.files as Record<string, string>;
+      }
+      if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+    } catch {
+      // Malformed JSON inside fence
+    }
+  }
+
+  // Fallback: treat entire response as a single App.tsx file
+  const code = trimmed.replace(/^```[\w]*\n/, '').replace(/```$/, '').trim();
+  return { '/src/App.tsx': code };
+}
+
 export function createChatTools(fileData: FileDataContext | null) {
   return {
     analyzeData: tool({
@@ -47,22 +88,16 @@ export function createChatTools(fileData: FileDataContext | null) {
           ),
       }),
       execute: async ({ title, description }) => {
-        const { text: code } = await generateText({
+        const { text } = await generateText({
           model: openai(AI_MODELS.codegen),
           system: buildCodegenPrompt(fileData),
           prompt: `Title: "${title}"\n\nDescription: ${description}`,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 16384,
         });
 
-        return { title, code: stripMarkdownFences(code) };
+        const files = parseFilesFromResponse(text);
+        return { title, files };
       },
     }),
   };
-}
-
-function stripMarkdownFences(code: string): string {
-  const trimmed = code.trim();
-  const fencePattern = /^```[\w]*\n([\s\S]*?)```$/;
-  const match = fencePattern.exec(trimmed);
-  return match ? match[1].trim() : trimmed;
 }

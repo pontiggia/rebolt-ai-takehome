@@ -1,17 +1,22 @@
 'use client';
 
 import { useMemo } from 'react';
-import { SandpackProvider, SandpackPreview, SandpackCodeEditor } from '@codesandbox/sandpack-react';
+import {
+  SandpackProvider,
+  SandpackPreview,
+  SandpackCodeEditor,
+  SandpackFileExplorer,
+} from '@codesandbox/sandpack-react';
 
 interface ArtifactSandpackProps {
-  readonly code: string;
+  readonly files: Readonly<Record<string, string>>;
   readonly view: 'preview' | 'code';
 }
 
 const ENTRY_FILE = `
 import React from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import App from "./src/App";
 
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
@@ -26,36 +31,33 @@ const CUSTOM_SETUP = {
   },
 };
 
-const OPTIONS = {
-  visibleFiles: ['/App.tsx'] as string[],
-};
+export function ArtifactSandpack({ files, view }: ArtifactSandpackProps) {
+  const sandpackFiles = useMemo(() => {
+    const result: Record<string, string | { code: string; hidden?: boolean }> = {};
+    for (const [path, content] of Object.entries(files)) {
+      result[path] = content;
+    }
+    result['/index.tsx'] = { code: ENTRY_FILE, hidden: true };
+    return result;
+  }, [files]);
 
-export function ArtifactSandpack({ code, view }: ArtifactSandpackProps) {
-  const files = useMemo(
+  const options = useMemo(
     () => ({
-      '/App.tsx': code,
-      '/index.tsx': ENTRY_FILE,
+      activeFile: '/src/App.tsx' as string,
     }),
-    [code],
+    [],
   );
 
   return (
     <div className="artifact-sandpack h-full">
-      <SandpackProvider
-        template="react-ts"
-        files={files}
-        customSetup={CUSTOM_SETUP}
-        options={OPTIONS}
-      >
-        {view === 'preview' ? (
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton={true}
-            style={{ height: '100%' }}
-          />
-        ) : (
-          <SandpackCodeEditor showTabs={false} showLineNumbers readOnly style={{ height: '100%' }} />
-        )}
+      <SandpackProvider template="react-ts" files={sandpackFiles} customSetup={CUSTOM_SETUP} options={options}>
+        <div style={{ display: view === 'preview' ? 'block' : 'none', height: '100%' }}>
+          <SandpackPreview showOpenInCodeSandbox={false} showRefreshButton={true} style={{ height: '100%' }} />
+        </div>
+        <div style={{ display: view === 'code' ? 'flex' : 'none', height: '100%' }}>
+          <SandpackFileExplorer autoHiddenFiles style={{ height: '100%', minWidth: 180, maxWidth: 220 }} />
+          <SandpackCodeEditor showTabs={false} showLineNumbers readOnly style={{ height: '100%', flex: 1 }} />
+        </div>
       </SandpackProvider>
     </div>
   );

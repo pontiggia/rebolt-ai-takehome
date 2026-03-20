@@ -155,7 +155,7 @@ export function ChatView({
           />
           <ArtifactPanel
             title={latestArtifact.title}
-            code={latestArtifact.code}
+            files={latestArtifact.files}
             error={artifactState.error}
             retryCount={artifactState.retryCount}
             onFixError={handleFixError}

@@ -22,10 +22,10 @@ function EmptyArtifactState() {
   );
 }
 
-export function ArtifactPanel({ title, code, error, retryCount, onFixError, onClose }: ArtifactPanelProps) {
+export function ArtifactPanel({ title, files, error, retryCount, onFixError, onClose }: ArtifactPanelProps) {
   const [view, setView] = useState<ArtifactView>('preview');
 
-  if (!code) return <EmptyArtifactState />;
+  if (!files || Object.keys(files).length === 0) return <EmptyArtifactState />;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -63,7 +63,7 @@ export function ArtifactPanel({ title, code, error, retryCount, onFixError, onCl
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ArtifactSandpack code={code} view={view} />
+        <ArtifactSandpack files={files} view={view} />
       </div>
 
       {error && retryCount < MAX_ARTIFACT_RETRIES && (

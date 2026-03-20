@@ -14,7 +14,7 @@ export interface AnalysisToolOutput {
 
 export interface ArtifactToolOutput {
   readonly title: string;
-  readonly code: string;
+  readonly files: Readonly<Record<string, string>>;
 }
 
 export interface ArtifactToolInput {

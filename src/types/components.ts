@@ -1,6 +1,6 @@
 export interface ArtifactPanelProps {
   readonly title: string | null;
-  readonly code: string | null;
+  readonly files: Readonly<Record<string, string>> | null;
   readonly error: string | null;
   readonly retryCount: number;
   readonly onFixError: () => void;

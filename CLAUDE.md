@@ -36,6 +36,11 @@
 
 ## Architecture Rules
 
+### Prompt Logging (IMPORTANT)
+
+- After every development prompt, append to `prompts.jsonl` (JSON Lines format).
+- Schema: `{ timestamp, "tool/model": "Claude", purpose, prompt, notes }`.
+
 ### Layers
 
 - `src/types/` — All shared types. Never inline complex types. All interfaces use `readonly`.
@@ -101,8 +106,3 @@
 - User messages: `bg-primary/10`. Assistant: plain text, no bubble.
 - Shadcn defaults. No custom components. Minimal shadows (`shadow-sm` on focused input only).
 - Border radius: `rounded-md` buttons, `rounded-lg` cards, `rounded-xl` input, `rounded-2xl` bubbles.
-
-### Prompt Logging
-
-- After every development prompt, append to `prompts.jsonl` (JSON Lines format).
-- Schema: `{ timestamp, "tool/model": "Claude", purpose, prompt, notes }`.

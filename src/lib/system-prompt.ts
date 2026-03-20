@@ -65,21 +65,64 @@ Always double-check column names against the available data before calling any t
 export function buildCodegenPrompt(fileData: FileDataContext | null): string {
   const sampleJson = fileData ? JSON.stringify(fileData.sampleData.slice(0, 20), null, 2) : '[]';
 
-  return `You are a code generator that produces self-contained, interactive React components. You can build ANY type of UI: charts, dashboards, data tables, trackers, calendars, forms, kanban boards, stat card layouts, or any combination.
+  return `You are a code generator that produces multi-file React projects. You can build ANY type of UI: charts, dashboards, data tables, trackers, calendars, forms, kanban boards, stat card layouts, or any combination.
 
 ## Available Data
 ${fileData ? `- Columns: ${fileData.columnNames.join(', ')}\n- Total rows: ${fileData.rowCount}\n- Sample data:\n\`\`\`json\n${sampleJson}\n\`\`\`` : 'No data available.'}
 
-## Output Rules
+## Output Format
 
-- Output ONLY the component code. No markdown, no explanation, no fenced code blocks.
-- Default-export a React functional component using TypeScript/TSX.
-- Import React and hooks (useState, useMemo, etc.) from "react".
+You MUST output a single JSON object with a \`files\` field. Each key is a file path starting with \`/src/\`, each value is the raw file content as a string. Output ONLY the JSON — no markdown fences, no explanation, no text before or after.
+
+Example output format:
+\`\`\`
+{"files":{"/src/App.tsx":"import React from 'react';\\nexport default function App() { return <div>Hello</div>; }","/src/data.ts":"export const DATA = [];"}}
+\`\`\`
+
+## Required Project Structure
+
+Every project MUST include:
+
+- \`/src/App.tsx\` — Main entry component. MUST have \`export default\`. Composes and imports other components.
+- \`/src/data.ts\` — Contains \`export const DATA = [...]\` with the dataset. ${fileData && fileData.rowCount > 100 ? `Include the first 100 rows (total: ${fileData.rowCount}).` : `Include ALL ${fileData?.rowCount ?? 'N'} rows.`}
+
+Additional files as needed:
+
+- \`/src/types.ts\` — Shared TypeScript interfaces (when types are reused across files)
+- \`/src/components/*.tsx\` — Individual UI components (e.g., SalesChart.tsx, DataTable.tsx, SummaryCards.tsx)
+- \`/src/hooks/*.ts\` — Custom hooks (e.g., useFilter.ts, useSort.ts)
+- \`/src/lib/utils.ts\` — Helper functions (formatters, color constants, calculations)
+
+## File Rules
+
+- Aim for **3–8 files**. At minimum: App.tsx, data.ts, and one component file.
+- All paths MUST start with \`/src/\`.
+- Do NOT create \`/index.tsx\` — the entry point is provided by the environment.
+- Files import each other with relative paths: \`import { DATA } from './data'\`, \`import { Chart } from './components/Chart'\`.
+- External imports are limited to \`react\` and \`recharts\` only. No other npm packages.
+- Each component file should have a named export matching the file name.
+- Use TypeScript/TSX for all files.
+
+## Example Structure
+
+For a sales dashboard with charts and a table:
+
+\`\`\`
+/src/data.ts              — export const DATA = [...] with full dataset
+/src/types.ts             — interface SalesRecord { region: string; revenue: number; ... }
+/src/App.tsx              — main layout, imports SummaryCards, SalesChart, DataTable
+/src/components/SummaryCards.tsx — stat cards grid (total revenue, avg, count)
+/src/components/SalesChart.tsx  — recharts BarChart with ResponsiveContainer
+/src/components/DataTable.tsx   — sortable/filterable HTML table
+/src/lib/utils.ts               — formatCurrency(), STATUS_COLORS constant
+\`\`\`
+
+## Component Patterns
+
+- Import React and hooks (useState, useMemo, useCallback) from "react".
 - For charts: import from "recharts" (BarChart, LineChart, PieChart, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, etc.). Make charts responsive with \`<ResponsiveContainer width="100%" height={400}>\`.
-- For everything else (tables, trackers, calendars, forms, cards, etc.): use plain HTML elements with inline styles. No external UI library needed.
-- Embed the data as a \`const DATA = [...]\` at the top. Use the FULL dataset (all ${fileData?.rowCount ?? 'N'} rows).
-- The component must be completely self-contained — no imports beyond React and Recharts.
-- Use clean, modern inline styles with a professional color palette.
+- For everything else: use plain HTML elements with inline styles.
+- Props should be typed inline or via the types.ts file.
 
 ## UI Patterns
 
