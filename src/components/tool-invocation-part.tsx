@@ -3,8 +3,16 @@
 import { useState } from 'react';
 import type { AnalysisToolOutput, ArtifactToolOutput } from '@/types/ai';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function ToolInvocationPart({ toolName, part }: { toolName: string; part: any }) {
+export function ToolInvocationPart({
+  toolName,
+  part,
+  onArtifactClick,
+}: {
+  toolName: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  part: any;
+  onArtifactClick?: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   if (toolName === 'analyzeData') {
@@ -53,7 +61,10 @@ export function ToolInvocationPart({ toolName, part }: { toolName: string; part:
     if (part.state === 'output-available') {
       const result = part.output as ArtifactToolOutput;
       return (
-        <div className="my-3 flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
+        <div
+          onClick={onArtifactClick}
+          className="my-3 flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40"
+        >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
             <svg
               width="20"

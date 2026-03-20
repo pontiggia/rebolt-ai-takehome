@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ArtifactPanelProps } from '@/types/components';
 import { MAX_ARTIFACT_RETRIES } from '@/types/chat';
@@ -21,33 +22,42 @@ function EmptyArtifactState() {
   );
 }
 
-export function ArtifactPanel({ title, code, error, retryCount, onFixError }: ArtifactPanelProps) {
+export function ArtifactPanel({ title, code, error, retryCount, onFixError, onClose }: ArtifactPanelProps) {
   const [view, setView] = useState<ArtifactView>('preview');
 
   if (!code) return <EmptyArtifactState />;
 
   return (
-    <div className="flex h-full w-[50%] flex-col border-l">
+    <div className="flex h-full w-full flex-col">
       <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2">
         <span className="truncate text-sm font-medium">{title ?? 'Artifact'}</span>
-        <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
+            <button
+              onClick={() => setView('preview')}
+              className={cn(
+                'rounded px-2 py-1 text-xs',
+                view === 'preview' ? 'bg-muted font-medium' : 'text-muted-foreground',
+              )}
+            >
+              Preview
+            </button>
+            <button
+              onClick={() => setView('code')}
+              className={cn(
+                'rounded px-2 py-1 text-xs',
+                view === 'code' ? 'bg-muted font-medium' : 'text-muted-foreground',
+              )}
+            >
+              {'</>'}
+            </button>
+          </div>
           <button
-            onClick={() => setView('preview')}
-            className={cn(
-              'rounded px-2 py-1 text-xs',
-              view === 'preview' ? 'bg-muted font-medium' : 'text-muted-foreground',
-            )}
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close artifact panel"
           >
-            Preview
-          </button>
-          <button
-            onClick={() => setView('code')}
-            className={cn(
-              'rounded px-2 py-1 text-xs',
-              view === 'code' ? 'bg-muted font-medium' : 'text-muted-foreground',
-            )}
-          >
-            {'</>'}
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>

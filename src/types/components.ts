@@ -4,6 +4,7 @@ export interface ArtifactPanelProps {
   readonly error: string | null;
   readonly retryCount: number;
   readonly onFixError: () => void;
+  readonly onClose: () => void;
 }
 
 export interface FileUploadBadgeProps {

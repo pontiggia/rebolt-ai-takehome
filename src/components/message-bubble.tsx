@@ -12,9 +12,10 @@ interface MessageBubbleProps {
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
   readonly files?: readonly FileMetadataResponse[];
+  readonly onArtifactClick?: () => void;
 }
 
-export function MessageBubble({ message, userInitials, userAvatarUrl, files }: MessageBubbleProps) {
+export function MessageBubble({ message, userInitials, userAvatarUrl, files, onArtifactClick }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const hasFiles = files && files.length > 0;
 
@@ -68,7 +69,7 @@ export function MessageBubble({ message, userInitials, userAvatarUrl, files }: M
 
             if (part.type.startsWith('tool-')) {
               const toolName = part.type.slice(5);
-              return <ToolInvocationPart key={i} toolName={toolName} part={part} />;
+              return <ToolInvocationPart key={i} toolName={toolName} part={part} onArtifactClick={onArtifactClick} />;
             }
 
             return null;
