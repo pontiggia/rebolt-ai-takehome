@@ -64,6 +64,13 @@ export function ChatView({
     regenerate,
   });
 
+  // Clear input when transitioning from empty state to conversation
+  useEffect(() => {
+    if (!conversation.isEmptyState) {
+      setInput('');
+    }
+  }, [conversation.isEmptyState, setInput]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,7 +85,6 @@ export function ChatView({
         setInitialFilesSent(true);
         fileUpload.clearFiles();
       });
-      setInput('');
       return;
     }
 
@@ -120,6 +126,15 @@ export function ChatView({
 
   const showPanel = latestArtifact && isOpen;
 
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const showThinking =
+    isLoading &&
+    lastMessage !== null &&
+    !(
+      lastMessage.role === 'assistant' &&
+      lastMessage.parts.some((p) => (p.type === 'text' && p.text.length > 0) || p.type.startsWith('tool-'))
+    );
+
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -135,7 +150,7 @@ export function ChatView({
                 onArtifactClick={() => setIsOpen(true)}
               />
             ))}
-            {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+            {showThinking && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="animate-pulse">●</span> Thinking...
               </div>

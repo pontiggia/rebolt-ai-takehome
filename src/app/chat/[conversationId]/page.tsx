@@ -18,6 +18,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
 
   return (
     <ChatView
+      key={conversationId}
       conversationId={conversationId}
       initialMessages={conversationDetail.value.messages}
       initialFiles={conversationDetail.value.files}

@@ -15,7 +15,7 @@ export function SubmitButton({ hasContent, disabled, onClick }: SubmitButtonProp
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center justify-center transition-opacity disabled:opacity-40"
+      className="flex cursor-pointer items-center justify-center transition-opacity disabled:cursor-default disabled:opacity-40"
       style={{ opacity }}
     >
       <svg width="32" height="32" viewBox="0 0 105 105" fill="none">

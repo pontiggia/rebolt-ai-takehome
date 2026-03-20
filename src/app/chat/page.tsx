@@ -8,5 +8,5 @@ export default async function ChatPage() {
     ? `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : (user.email?.[0]?.toUpperCase() ?? 'U');
 
-  return <ChatView userInitials={userInitials} userAvatarUrl={user.profilePictureUrl ?? null} />;
+  return <ChatView key="new" userInitials={userInitials} userAvatarUrl={user.profilePictureUrl ?? null} />;
 }

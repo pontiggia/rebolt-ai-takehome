@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
+import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { FileUploadBadge } from '@/components/file-upload-badge';
 import { ToolInvocationPart } from '@/components/tool-invocation-part';
 import type { FileMetadataResponse } from '@/types/api';
@@ -58,23 +58,27 @@ export function MessageBubble({ message, userInitials, userAvatarUrl, files, onA
     );
   }
 
+  const artifactParts = message.parts.filter((part) => part.type === 'tool-generateArtifact');
+
   return (
     <div className="mt-2">
-      <div className="text-sm leading-relaxed">
-        <div className="prose prose-sm max-w-none">
+      <div>
           {message.parts.map((part, i) => {
             if (part.type === 'text') {
-              return <ReactMarkdown key={i}>{part.text}</ReactMarkdown>;
+              return <MarkdownRenderer key={i} content={part.text} />;
             }
-
+            if (part.type === 'tool-generateArtifact') {
+              return <ToolInvocationPart key={i} toolName="generateArtifact" part={part} onArtifactClick={onArtifactClick} mode="instructions" />;
+            }
             if (part.type.startsWith('tool-')) {
               const toolName = part.type.slice(5);
               return <ToolInvocationPart key={i} toolName={toolName} part={part} onArtifactClick={onArtifactClick} />;
             }
-
             return null;
           })}
-        </div>
+          {artifactParts.map((part, i) => (
+            <ToolInvocationPart key={`artifact-${i}`} toolName="generateArtifact" part={part} onArtifactClick={onArtifactClick} mode="card" />
+          ))}
       </div>
     </div>
   );

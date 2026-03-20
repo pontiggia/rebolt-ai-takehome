@@ -15,7 +15,7 @@ export function ConversationItem({ conversation, isActive, isDeleting, onDelete 
   return (
     <div
       className={cn(
-        'group flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted',
+        'group flex items-center justify-between overflow-hidden rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted',
         isActive && 'bg-primary/10 text-primary font-medium',
       )}
     >
@@ -25,7 +25,7 @@ export function ConversationItem({ conversation, isActive, isDeleting, onDelete 
       <button
         onClick={(e) => onDelete(conversation.id, e)}
         disabled={isDeleting}
-        className="hidden shrink-0 text-muted-foreground hover:text-destructive group-hover:block"
+        className="hidden shrink-0 cursor-pointer text-muted-foreground hover:text-destructive group-hover:block"
       >
         <svg
           width="14"
