@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import type { PersistedChatParts } from '@/types/chat';
+import { ARTIFACT_RETRY_SOURCES, type PersistedChatParts } from '@/types/chat';
 
 // ─── Chat ───
 export const chatBodySchema = z.object({
@@ -14,6 +14,19 @@ export const chatBodySchema = z.object({
       }),
     )
     .min(1),
+  artifactRetry: z
+    .object({
+      assistantMessageId: z.string().min(1),
+      artifactToolCallId: z.string().min(1),
+      artifactTitle: z.string().nullable(),
+      artifactDescription: z.string().nullable(),
+      files: z.record(z.string(), z.string()).nullable(),
+      error: z.string().min(1),
+      source: z.enum(ARTIFACT_RETRY_SOURCES),
+      attempt: z.number().int().positive(),
+      manual: z.boolean(),
+    })
+    .optional(),
 });
 export type ChatBody = z.infer<typeof chatBodySchema>;
 
