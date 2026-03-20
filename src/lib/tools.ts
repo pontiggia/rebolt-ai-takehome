@@ -54,8 +54,15 @@ export function createChatTools(fileData: FileDataContext | null) {
           maxOutputTokens: 8192,
         });
 
-        return { title, code };
+        return { title, code: stripMarkdownFences(code) };
       },
     }),
   };
+}
+
+function stripMarkdownFences(code: string): string {
+  const trimmed = code.trim();
+  const fencePattern = /^```[\w]*\n([\s\S]*?)```$/;
+  const match = fencePattern.exec(trimmed);
+  return match ? match[1].trim() : trimmed;
 }

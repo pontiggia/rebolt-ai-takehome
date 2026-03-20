@@ -78,3 +78,9 @@
     @apply font-sans;
   }
 }
+
+/* Force Sandpack internals to fill artifact panel */
+.artifact-sandpack .sp-wrapper,
+.artifact-sandpack .sp-stack {
+  height: 100%;
+}

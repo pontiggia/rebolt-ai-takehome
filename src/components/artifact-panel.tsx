@@ -52,7 +52,7 @@ export function ArtifactPanel({ title, code, error, retryCount, onFixError }: Ar
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <ArtifactSandpack code={code} view={view} />
       </div>
 
