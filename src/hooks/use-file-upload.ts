@@ -2,15 +2,16 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { uploadFile } from '@/lib/api-client';
+import { validateUploadableFile } from '@/lib/files/file-validation';
 import type { FileMetadataResponse } from '@/types/api';
 import { ALLOWED_FILE_TYPES } from '@/types/file';
 
 interface UseFileUploadOptions {
   readonly conversationId: string | null;
-  readonly onConversationNeeded?: () => Promise<string>;
+  readonly onConversationAdopted?: (conversationId: string) => void;
 }
 
-export function useFileUpload({ conversationId, onConversationNeeded }: UseFileUploadOptions) {
+export function useFileUpload({ conversationId, onConversationAdopted }: UseFileUploadOptions) {
   const [pendingFiles, setPendingFiles] = useState<readonly FileMetadataResponse[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -21,18 +22,19 @@ export function useFileUpload({ conversationId, onConversationNeeded }: UseFileU
       const file = e.target.files?.[0];
       if (!file) return;
 
-      setIsUploading(true);
       setUploadError(null);
-      try {
-        let convId = conversationId;
-        if (!convId) {
-          if (!onConversationNeeded) {
-            throw new Error('No conversation available for upload');
-          }
-          convId = await onConversationNeeded();
+      const validation = validateUploadableFile(file);
+      if (!validation.ok) {
+        setUploadError(validation.error.message);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
+        return;
+      }
 
-        const result = await uploadFile(convId, file);
+      setIsUploading(true);
+      try {
+        const result = await uploadFile(conversationId, file);
         setPendingFiles((prev) => [
           ...prev,
           {
@@ -43,6 +45,9 @@ export function useFileUpload({ conversationId, onConversationNeeded }: UseFileU
             rowCount: result.rowCount,
           },
         ]);
+        if (!conversationId) {
+          onConversationAdopted?.(result.conversationId);
+        }
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : 'Upload failed');
       } finally {
@@ -50,7 +55,7 @@ export function useFileUpload({ conversationId, onConversationNeeded }: UseFileU
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [conversationId, onConversationNeeded],
+    [conversationId, onConversationAdopted],
   );
 
   const openFilePicker = useCallback(() => {

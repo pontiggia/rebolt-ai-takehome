@@ -11,22 +11,28 @@ import { parseFileContents, validateFile } from '@/services/files';
 import type { UploadResponse } from '@/types/api';
 import type { FileError, NotFoundError } from '@/types/errors';
 import { FILE_LIMITS, type ParsedFileData } from '@/types/file';
-import type { Result } from '@/types/result';
-import { ok } from '@/types/result';
+import { ok, type Result } from '@/types/result';
 
 interface UploadConversationFileInput {
-  readonly conversationId: string;
+  readonly conversationId?: string;
   readonly userId: string;
   readonly file: File;
 }
 
 type UploadConversationFileError = NotFoundError | FileError;
 
+interface StoredUpload {
+  readonly fileId: string;
+  readonly blobUrl: string;
+  readonly sampleData: readonly Record<string, unknown>[];
+}
+
 function buildUploadResponse(
-  fileRecord: { id: string; fileName: string; blobUrl: string },
+  fileRecord: { id: string; fileName: string; blobUrl: string; conversationId: string },
   parsed: ParsedFileData,
 ): UploadResponse {
   return {
+    conversationId: fileRecord.conversationId,
     fileId: fileRecord.id,
     fileName: fileRecord.fileName,
     blobUrl: fileRecord.blobUrl,
@@ -37,17 +43,7 @@ function buildUploadResponse(
   };
 }
 
-async function persistUploadedFile({
-  conversationId,
-  userId,
-  file,
-  parsed,
-}: {
-  readonly conversationId: string;
-  readonly userId: string;
-  readonly file: File;
-  readonly parsed: ParsedFileData;
-}): Promise<UploadResponse> {
+async function storeUploadedAssets(file: File, parsed: ParsedFileData): Promise<StoredUpload> {
   const fileId = uuidv7();
   const sampleData = parsed.rows.slice(0, FILE_LIMITS.sampleSize) as Record<string, unknown>[];
 
@@ -64,25 +60,54 @@ async function persistUploadedFile({
     ),
   ]);
 
-  const [fileRecord] = await db
-    .insert(files)
-    .values({
-      id: fileId,
-      userId,
-      conversationId,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      blobUrl: blob.url,
-      columnNames: [...parsed.columnNames],
-      rowCount: parsed.rowCount,
-      sampleData,
-    })
-    .returning();
+  return {
+    fileId,
+    blobUrl: blob.url,
+    sampleData,
+  };
+}
 
-  await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, conversationId));
+async function persistUploadedFile({
+  conversationId,
+  userId,
+  file,
+  parsed,
+  storedUpload,
+}: {
+  readonly conversationId?: string;
+  readonly userId: string;
+  readonly file: File;
+  readonly parsed: ParsedFileData;
+  readonly storedUpload: StoredUpload;
+}): Promise<UploadResponse> {
+  return db.transaction(async (tx) => {
+    let resolvedConversationId = conversationId;
 
-  return buildUploadResponse(fileRecord, parsed);
+    if (!resolvedConversationId) {
+      const [conversation] = await tx.insert(conversations).values({ userId }).returning();
+      resolvedConversationId = conversation.id;
+    }
+
+    const [fileRecord] = await tx
+      .insert(files)
+      .values({
+        id: storedUpload.fileId,
+        userId,
+        conversationId: resolvedConversationId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        blobUrl: storedUpload.blobUrl,
+        columnNames: [...parsed.columnNames],
+        rowCount: parsed.rowCount,
+        sampleData: [...storedUpload.sampleData],
+      })
+      .returning();
+
+    await tx.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, resolvedConversationId));
+
+    return buildUploadResponse(fileRecord, parsed);
+  });
 }
 
 export async function uploadConversationFile({
@@ -90,9 +115,11 @@ export async function uploadConversationFile({
   userId,
   file,
 }: UploadConversationFileInput): Promise<Result<UploadResponse, UploadConversationFileError>> {
-  const conversation = await getConversation(conversationId, userId);
-  if (!conversation.ok) {
-    return conversation;
+  if (conversationId) {
+    const conversation = await getConversation(conversationId, userId);
+    if (!conversation.ok) {
+      return conversation;
+    }
   }
 
   const validation = validateFile(file);
@@ -106,12 +133,15 @@ export async function uploadConversationFile({
     return parsed;
   }
 
+  const storedUpload = await storeUploadedAssets(file, parsed.value);
+
   return ok(
     await persistUploadedFile({
       conversationId,
       userId,
       file,
       parsed: parsed.value,
+      storedUpload,
     }),
   );
 }

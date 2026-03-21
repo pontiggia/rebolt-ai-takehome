@@ -4,7 +4,7 @@ import { errorResponse } from '@/types/errors';
 import { z } from 'zod/v4';
 
 const uploadFormSchema = z.object({
-  conversationId: z.string().uuid(),
+  conversationId: z.string().uuid().nullish(),
   file: z.instanceof(File),
 });
 
@@ -21,7 +21,7 @@ export const POST = withAuthHandler(async (req, { user }) => {
 
   const { conversationId, file } = parsedForm.data;
   const uploadResult = await uploadConversationFile({
-    conversationId,
+    conversationId: conversationId ?? undefined,
     userId: user.id,
     file,
   });
