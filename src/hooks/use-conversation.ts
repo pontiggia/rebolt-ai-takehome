@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import { createConversation, createConversationOnly } from '@/actions/conversations';
-import type { FileMetadataResponse, MessageResponse } from '@/types/api';
-import type { AppUIMessage } from '@/types/ai';
+import { buildUserMessageParts } from '@/lib/chat/user-message-parts';
+import type { MessageResponse } from '@/types/api';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
 
 interface UseConversationOptions {
   readonly propsConversationId?: string;
@@ -36,25 +37,29 @@ export function useConversation({ propsConversationId, initialMessages }: UseCon
   }, []);
 
   const createFirstMessage = useCallback(
-    (text: string, pendingFiles: readonly FileMetadataResponse[] | null, onFilesHandled: () => void) => {
+    (text: string, uploadedFiles: readonly UploadedFileData[] | null, onFilesHandled: () => void) => {
       if (!text.trim() || isPending) return;
       setCreationError(null);
 
       const messageText = text.trim();
       startTransition(async () => {
         try {
-          const { id, messageId } = await createConversation(messageText, pendingConversationId ?? undefined);
+          const { id, messageId } = await createConversation(
+            messageText,
+            pendingConversationId ?? undefined,
+            uploadedFiles ?? [],
+          );
 
           setCreatedMessages([
             {
               id: messageId,
               role: 'user' as const,
-              parts: [{ type: 'text' as const, text: messageText }],
+              parts: buildUserMessageParts(messageText, uploadedFiles ?? []),
             },
           ]);
           setPendingConversationId(id);
 
-          if (pendingFiles) {
+          if (uploadedFiles) {
             onFilesHandled();
           }
         } catch (e) {

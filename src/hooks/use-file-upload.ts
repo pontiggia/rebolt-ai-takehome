@@ -8,11 +8,10 @@ import { ALLOWED_FILE_TYPES } from '@/types/file';
 interface UseFileUploadOptions {
   readonly conversationId: string | null;
   readonly onConversationNeeded?: () => Promise<string>;
-  readonly initialFiles?: readonly FileMetadataResponse[];
 }
 
-export function useFileUpload({ conversationId, onConversationNeeded, initialFiles }: UseFileUploadOptions) {
-  const [pendingFiles, setPendingFiles] = useState<readonly FileMetadataResponse[]>(initialFiles ?? []);
+export function useFileUpload({ conversationId, onConversationNeeded }: UseFileUploadOptions) {
+  const [pendingFiles, setPendingFiles] = useState<readonly FileMetadataResponse[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

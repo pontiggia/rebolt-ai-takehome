@@ -84,7 +84,7 @@ export function ComposerInput({
       {pendingFiles.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
           {pendingFiles.map((file) => (
-            <FileUploadBadge key={file.id} fileName={file.fileName} rowCount={file.rowCount} />
+            <FileUploadBadge key={file.id} fileName={file.fileName} fileType={file.fileType} />
           ))}
         </div>
       )}

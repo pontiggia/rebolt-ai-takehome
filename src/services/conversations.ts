@@ -2,7 +2,7 @@ import 'server-only';
 
 import { db } from '@/db/client';
 import { conversations, files } from '@/db/schema';
-import type { Conversation } from '@/db/schema';
+import type { Conversation, FileRecord } from '@/db/schema';
 import type { FileDataContext } from '@/types/file';
 import type { Result } from '@/types/result';
 import type { NotFoundError } from '@/types/errors';
@@ -43,6 +43,15 @@ export async function getConversationFileData(conversationId: string): Promise<R
 }
 
 export async function getFileDataById(fileId: string, userId: string): Promise<Result<FileDataContext, NotFoundError>> {
+  const file = await getOwnedFileRecord(fileId, userId);
+  if (!file.ok) {
+    return file;
+  }
+
+  return ok(await toFileDataContext(file.value));
+}
+
+export async function getOwnedFileRecord(fileId: string, userId: string): Promise<Result<FileRecord, NotFoundError>> {
   const file = await db.query.files.findFirst({
     where: and(eq(files.id, fileId), eq(files.userId, userId)),
   });
@@ -55,7 +64,7 @@ export async function getFileDataById(fileId: string, userId: string): Promise<R
     });
   }
 
-  return ok(await toFileDataContext(file));
+  return ok(file);
 }
 
 export async function listConversations(userId: string): Promise<Result<Conversation[], never>> {
@@ -74,13 +83,7 @@ export async function getConversationDetail(
   const convo = await getConversation(conversationId, userId);
   if (!convo.ok) return convo;
 
-  const [messages, conversationFiles] = await Promise.all([
-    listConversationMessages(conversationId),
-    db.query.files.findMany({
-      where: eq(files.conversationId, conversationId),
-      orderBy: [desc(files.createdAt)],
-    }),
-  ]);
+  const messages = await listConversationMessages(conversationId);
 
   return ok({
     conversation: {
@@ -89,13 +92,6 @@ export async function getConversationDetail(
       updatedAt: convo.value.updatedAt.toISOString(),
     },
     messages,
-    files: conversationFiles.map((file) => ({
-      id: file.id,
-      fileName: file.fileName,
-      fileType: file.fileType,
-      columnNames: file.columnNames,
-      rowCount: file.rowCount,
-    })),
   });
 }
 

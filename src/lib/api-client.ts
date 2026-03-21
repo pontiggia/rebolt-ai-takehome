@@ -1,4 +1,4 @@
-import type { UploadResponse } from '@/types/api';
+import type { FilePreviewResponse, UploadResponse } from '@/types/api';
 
 async function getErrorMessage(res: Response, fallback: string): Promise<string> {
   try {
@@ -23,4 +23,13 @@ export async function uploadFile(conversationId: string, file: File): Promise<Up
   }
 
   return res.json() as Promise<UploadResponse>;
+}
+
+export async function fetchFilePreview(fileId: string, signal?: AbortSignal): Promise<FilePreviewResponse> {
+  const res = await fetch(`/api/files/${fileId}/preview`, { signal });
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to load file preview'));
+  }
+
+  return res.json() as Promise<FilePreviewResponse>;
 }

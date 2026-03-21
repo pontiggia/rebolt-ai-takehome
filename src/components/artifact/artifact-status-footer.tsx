@@ -1,15 +1,12 @@
 import { cn } from '@/lib/utils';
 import type { ArtifactPanelProps } from '@/types/components';
-import { MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
 
 type ArtifactStatusFooterProps = Pick<ArtifactPanelProps, 'runtimeState' | 'isRetryDisabled' | 'onManualRetry'>;
 
 function ArtifactRetryingFooter({ runtimeState }: Pick<ArtifactStatusFooterProps, 'runtimeState'>) {
   return (
     <div className="border-t bg-muted/30 px-3 py-2">
-      <p className="text-sm font-medium">
-        Self-correcting (attempt {runtimeState.retryCount}/{MAX_ARTIFACT_AUTO_RETRIES})...
-      </p>
+      <p className="text-sm font-medium">Self-correcting...</p>
       {runtimeState.lastError && <p className="mt-1 text-xs text-muted-foreground">{runtimeState.lastError}</p>}
     </div>
   );

@@ -20,7 +20,7 @@ export interface ArtifactSandpackProps {
 
 export interface FileUploadBadgeProps {
   readonly fileName: string;
-  readonly rowCount: number;
+  readonly fileType: string;
 }
 
 export interface SidebarItemProps {

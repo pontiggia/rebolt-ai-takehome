@@ -53,7 +53,9 @@ export function createChatUIStream({
         system: buildAnalysisPrompt(fileData),
         messages: modelMessages,
         maxOutputTokens: 4096,
-        stopWhen: stepCountIs(3),
+        // Artifact requests often spend 3 steps on analyze -> inspect -> generate,
+        // so we need extra headroom for the assistant's final natural-language summary.
+        stopWhen: stepCountIs(5),
         tools,
         experimental_context: executionContext,
         experimental_onStepStart: (event) => {

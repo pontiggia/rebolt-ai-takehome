@@ -57,7 +57,6 @@ export interface ConversationSummary {
 export interface ConversationDetailResponse {
   readonly conversation: ConversationSummary;
   readonly messages: readonly MessageResponse[];
-  readonly files: readonly FileMetadataResponse[];
 }
 
 export interface MessageResponse {
@@ -74,4 +73,13 @@ export interface FileMetadataResponse {
   readonly fileType: string;
   readonly columnNames: readonly string[];
   readonly rowCount: number;
+}
+
+export interface FilePreviewResponse {
+  readonly fileId: string;
+  readonly fileName: string;
+  readonly summaryLabel: string;
+  readonly note: string;
+  readonly previewText: string;
+  readonly truncated: boolean;
 }
