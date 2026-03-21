@@ -1,6 +1,7 @@
 import { put } from '@vercel/blob';
 import { withAuthHandler, invalidRequestError } from '@/lib/api';
 import { validateFile, parseFileContents } from '@/services/files';
+import { storeDatasetForUpload } from '@/services/datasets';
 import { errorResponse } from '@/types/errors';
 import { FILE_LIMITS } from '@/types/file';
 import type { UploadResponse } from '@/types/api';
@@ -9,6 +10,7 @@ import { conversations, files } from '@/db/schema';
 import { getConversation } from '@/services/conversations';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
+import { uuidv7 } from 'uuidv7';
 
 const uploadFormSchema = z.object({
   conversationId: z.string().uuid(),
@@ -40,19 +42,32 @@ export const POST = withAuthHandler(async (req, { user }) => {
   const parsed = parseFileContents(buffer, file.type);
   if (!parsed.ok) return errorResponse(parsed.error);
 
-  const blob = await put(file.name, file, { access: 'public', addRandomSuffix: true });
-
+  const fileId = uuidv7();
   const sampleData = parsed.value.rows.slice(0, FILE_LIMITS.sampleSize) as Record<string, unknown>[];
+  const [blob] = await Promise.all([
+    put(file.name, file, { access: 'public', addRandomSuffix: true }),
+    storeDatasetForUpload(
+      {
+        id: fileId,
+        fileName: file.name,
+        columnNames: [...parsed.value.columnNames],
+        rowCount: parsed.value.rowCount,
+      },
+      parsed.value.rows,
+    ),
+  ]);
+
   const [fileRecord] = await db
     .insert(files)
     .values({
+      id: fileId,
       userId: user.id,
       conversationId,
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
       blobUrl: blob.url,
-      columnNames: parsed.value.columnNames as string[],
+      columnNames: [...parsed.value.columnNames],
       rowCount: parsed.value.rowCount,
       sampleData,
     })

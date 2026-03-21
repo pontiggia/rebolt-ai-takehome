@@ -68,6 +68,9 @@ export function ChatView({
     initialFiles: hasExistingFiles && !initialFilesSent ? initialFiles : undefined,
   });
 
+  const latestFileId =
+    fileUpload.pendingFiles.length > 0 ? fileUpload.pendingFiles[fileUpload.pendingFiles.length - 1].id : null;
+
   const { sentFilesMap, trackFiles } = useSentFiles(messages.length);
   const {
     activeArtifact,
@@ -80,6 +83,7 @@ export function ChatView({
   } = useArtifact({
     messages,
     conversationId: conversation.chatConversationId,
+    latestFileId,
     chatStatus: status,
     regenerate,
   });

@@ -10,7 +10,7 @@ import type {
   ArtifactRuntimeEvent,
   ArtifactRuntimeState,
 } from '@/types/chat';
-import { MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
+import { ARTIFACT_DATASET_ERROR_MARKER, MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
 
 const IDLE_RUNTIME_STATE: ArtifactRuntimeState = {
   status: 'idle',
@@ -43,6 +43,7 @@ interface PendingRetry {
 interface UseArtifactOptions {
   readonly messages: UIMessage[];
   readonly conversationId: string | null;
+  readonly latestFileId: string | null;
   readonly chatStatus: ChatStatus;
   readonly regenerate: (options?: { messageId?: string; body?: Record<string, unknown> }) => Promise<void>;
 }
@@ -64,6 +65,14 @@ function normalizeErrorMessage(value: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function isDatasetAccessError(error: string): boolean {
+  return error.startsWith(ARTIFACT_DATASET_ERROR_MARKER);
+}
+
+function stripDatasetAccessError(error: string): string {
+  return error.replace(ARTIFACT_DATASET_ERROR_MARKER, '').trim();
 }
 
 function getGenerateArtifactPart(part: UIMessage['parts'][number]): GenerateArtifactPart | null {
@@ -89,6 +98,7 @@ function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): ActiveArt
         key: `${message.id}:${part.toolCallId}`,
         assistantMessageId: message.id,
         toolCallId: part.toolCallId,
+        fileId: output.fileId ?? null,
         title: output.title ?? input?.title ?? null,
         description: input?.description ?? null,
         files: output.files,
@@ -99,7 +109,10 @@ function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): ActiveArt
   return null;
 }
 
-function findLatestGenerateArtifactToolError(messages: readonly UIMessage[]): GenerateArtifactToolError | null {
+function findLatestGenerateArtifactToolError(
+  messages: readonly UIMessage[],
+  fallbackFileId: string | null,
+): GenerateArtifactToolError | null {
   for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
     const message = messages[messageIndex];
     if (message.role !== 'assistant') {
@@ -119,6 +132,7 @@ function findLatestGenerateArtifactToolError(messages: readonly UIMessage[]): Ge
         payload: {
           assistantMessageId: message.id,
           artifactToolCallId: part.toolCallId,
+          fileId: fallbackFileId,
           artifactTitle: input?.title ?? null,
           artifactDescription: input?.description ?? null,
           files: null,
@@ -146,9 +160,9 @@ function toRuntimeSource(event: Exclude<ArtifactRuntimeEvent, { type: 'ready' }>
 
 type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
 
-export function useArtifact({ messages, conversationId, chatStatus, regenerate }: UseArtifactOptions) {
+export function useArtifact({ messages, conversationId, latestFileId, chatStatus, regenerate }: UseArtifactOptions) {
   const latestSuccessfulArtifact = findLatestSuccessfulArtifact(messages);
-  const latestToolError = findLatestGenerateArtifactToolError(messages);
+  const latestToolError = findLatestGenerateArtifactToolError(messages, latestFileId);
 
   const [activeArtifact, setActiveArtifact] = useState<ActiveArtifact | null>(() => latestSuccessfulArtifact);
   const [runtimeState, setRuntimeState] = useState<ArtifactRuntimeState>(IDLE_RUNTIME_STATE);
@@ -283,7 +297,7 @@ export function useArtifact({ messages, conversationId, chatStatus, regenerate }
         return;
       }
 
-      const nextToolError = findLatestGenerateArtifactToolError(finishedMessages);
+      const nextToolError = findLatestGenerateArtifactToolError(finishedMessages, pendingRetry.payload.fileId);
       if (nextToolError) {
         setFailureState(nextToolError.payload.error, nextToolError.payload.source);
         return;
@@ -345,9 +359,21 @@ export function useArtifact({ messages, conversationId, chatStatus, regenerate }
         return;
       }
 
+      if (isDatasetAccessError(error)) {
+        lastRuntimeErrorSignatureRef.current = signature;
+        setRuntimeState((prev) => ({
+          status: 'failed',
+          retryCount: prev.retryCount,
+          lastError: stripDatasetAccessError(error),
+          source,
+        }));
+        return;
+      }
+
       const retryResult = requestRetry({
         assistantMessageId: artifact.assistantMessageId,
         artifactToolCallId: artifact.toolCallId,
+        fileId: artifact.fileId,
         artifactTitle: artifact.title,
         artifactDescription: artifact.description,
         files: artifact.files,
@@ -376,6 +402,7 @@ export function useArtifact({ messages, conversationId, chatStatus, regenerate }
         ? {
             assistantMessageId: previousRetry.assistantMessageId,
             artifactToolCallId: previousRetry.artifactToolCallId,
+            fileId: previousRetry.fileId,
             artifactTitle: previousRetry.artifactTitle,
             artifactDescription: previousRetry.artifactDescription,
             files: previousRetry.files,
@@ -385,6 +412,7 @@ export function useArtifact({ messages, conversationId, chatStatus, regenerate }
         : {
             assistantMessageId: artifact.assistantMessageId,
             artifactToolCallId: artifact.toolCallId,
+            fileId: artifact.fileId,
             artifactTitle: artifact.title,
             artifactDescription: artifact.description,
             files: artifact.files,

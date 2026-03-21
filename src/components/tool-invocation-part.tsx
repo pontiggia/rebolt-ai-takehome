@@ -28,6 +28,7 @@ export function ToolInvocationPart({
 }) {
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     if (toolName === 'analyzeData') return <ToolLoadingIndicator label="Analyzing data..." />;
+    if (toolName === 'readDatasetRows') return <ToolLoadingIndicator label="Inspecting full dataset..." />;
     if (toolName === 'generateArtifact') return <ToolLoadingIndicator label="Generating visualization..." />;
   }
 
@@ -49,6 +50,10 @@ export function ToolInvocationPart({
 
     if (toolName === 'analyzeData') {
       return <ToolErrorSection label="Analysis failed" error={part.errorText} />;
+    }
+
+    if (toolName === 'readDatasetRows') {
+      return <ToolErrorSection label="Dataset inspection failed" error={part.errorText} />;
     }
 
     return <ToolErrorSection label={`${toolName} failed`} error={part.errorText} />;
