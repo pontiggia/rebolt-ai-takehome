@@ -8,6 +8,22 @@ import type { ParsedFileData, AllowedFileType } from '@/types/file';
 import { ok, err } from '@/types/result';
 import { FILE_LIMITS, ALLOWED_FILE_TYPES } from '@/types/file';
 
+function hasMeaningfulCellValue(value: unknown): boolean {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  return true;
+}
+
+function removeEmptyRows(rows: readonly Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.filter((row) => Object.values(row).some((value) => hasMeaningfulCellValue(value)));
+}
+
 export function validateFile(file: File): Result<void, FileError> {
   if (!ALLOWED_FILE_TYPES.includes(file.type as AllowedFileType)) {
     return err({
@@ -33,12 +49,12 @@ export function parseFileContents(buffer: Buffer, fileType: string): Result<Pars
     let rows: Record<string, unknown>[];
 
     if (fileType === 'text/csv') {
-      const parsed = Papa.parse(buffer.toString(), { header: true });
-      rows = parsed.data as Record<string, unknown>[];
+      const parsed = Papa.parse(buffer.toString(), { header: true, skipEmptyLines: 'greedy' });
+      rows = removeEmptyRows(parsed.data as Record<string, unknown>[]);
     } else {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils.sheet_to_json(sheet);
+      rows = removeEmptyRows(XLSX.utils.sheet_to_json(sheet));
     }
 
     const columnNames = Object.keys(rows[0] ?? {});
@@ -51,10 +67,7 @@ export function parseFileContents(buffer: Buffer, fileType: string): Result<Pars
       });
     }
 
-    const truncated = rows.length > FILE_LIMITS.maxRows;
-    if (truncated) rows = rows.slice(0, FILE_LIMITS.maxRows);
-
-    return ok({ rows, columnNames, rowCount: rows.length, truncated });
+    return ok({ rows, columnNames, rowCount: rows.length, truncated: false });
   } catch {
     return err({
       type: 'FILE_ERROR',

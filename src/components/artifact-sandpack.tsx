@@ -27,6 +27,8 @@ const root = createRoot(document.getElementById("root")!);
 root.render(<App />);
 `;
 
+const HIDDEN_FILES = new Set(['/index.tsx', '/src/rebolt-dataset.ts']);
+
 function getSandpackErrorMessage(
   message: Partial<Record<'message' | 'title' | 'description', unknown>>,
   fallback: string,
@@ -88,7 +90,7 @@ export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: A
   const sandpackFiles = useMemo(() => {
     const result: Record<string, string | { code: string; hidden?: boolean }> = {};
     for (const [path, content] of Object.entries(files)) {
-      result[path] = content;
+      result[path] = HIDDEN_FILES.has(path) ? { code: content, hidden: true } : content;
     }
     result['/index.tsx'] = { code: ENTRY_FILE, hidden: true };
     return result;

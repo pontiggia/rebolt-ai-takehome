@@ -18,6 +18,7 @@ export const chatBodySchema = z.object({
     .object({
       assistantMessageId: z.string().min(1),
       artifactToolCallId: z.string().min(1),
+      fileId: z.string().uuid().nullable(),
       artifactTitle: z.string().nullable(),
       artifactDescription: z.string().nullable(),
       files: z.record(z.string(), z.string()).nullable(),

@@ -3,14 +3,10 @@ import type { UIMessage } from 'ai';
 import type { Tool } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { invalidRequestError, parseJsonBody, withAuthHandler } from '@/lib/api';
-import { getConversation, getConversationFileData } from '@/services/conversations';
+import { getConversation, getConversationFileData, getFileDataById } from '@/services/conversations';
 import { errorResponse } from '@/types/errors';
 import { chatBodySchema } from '@/types/api';
-import {
-  buildAnalysisPrompt,
-  buildArtifactRetryMessage,
-  type ArtifactRetryDataContext,
-} from '@/lib/system-prompt';
+import { buildAnalysisPrompt, buildArtifactRetryMessage, type ArtifactRetryDataContext } from '@/lib/system-prompt';
 import { createChatTools } from '@/lib/tools';
 import { AI_MODELS } from '@/types/ai';
 import { syncConversationMessages, upsertConversationMessage } from '@/services/messages';
@@ -46,6 +42,7 @@ function createArtifactRetryDataContext(fileData: FileDataContext | null): Artif
   }
 
   return {
+    fileId: fileData.fileId,
     fileName: fileData.fileName,
     columnNames: fileData.columnNames,
     rowCount: fileData.rowCount,
@@ -61,14 +58,16 @@ export const POST = withAuthHandler(async (req, { user }) => {
 
   const { conversationId, messages: rawMessages, artifactRetry } = parsedBody.data;
 
-  const [convoResult, fileResult] = await Promise.all([
-    getConversation(conversationId, user.id),
-    getConversationFileData(conversationId),
-  ]);
+  const convoResult = await getConversation(conversationId, user.id);
 
   if (!convoResult.ok) return errorResponse(convoResult.error);
 
-  const fileData = fileResult.ok ? fileResult.value : null;
+  const fileResult = artifactRetry?.fileId
+    ? await getFileDataById(artifactRetry.fileId, user.id)
+    : await getConversationFileData(conversationId);
+  if (!fileResult.ok) return errorResponse(fileResult.error);
+
+  const fileData = fileResult.value;
   const tools = createChatTools(fileData);
   const validatedMessages = await safeValidateUIMessages<UIMessage>({
     messages: rawMessages,

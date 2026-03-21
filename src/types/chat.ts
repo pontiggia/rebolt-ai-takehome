@@ -4,6 +4,7 @@ export type PersistedChatMessage = UIMessage;
 export type PersistedChatParts = PersistedChatMessage['parts'];
 
 export const MAX_ARTIFACT_AUTO_RETRIES = 3;
+export const ARTIFACT_DATASET_ERROR_MARKER = '[rebolt-dataset]';
 
 export const ARTIFACT_RETRY_SOURCES = [
   'sandpack-runtime',
@@ -19,6 +20,7 @@ export type ArtifactRuntimeStatus = 'idle' | 'retrying' | 'failed' | 'exhausted'
 export interface ArtifactRetryPayload {
   readonly assistantMessageId: string;
   readonly artifactToolCallId: string;
+  readonly fileId: string | null;
   readonly artifactTitle: string | null;
   readonly artifactDescription: string | null;
   readonly files: Readonly<Record<string, string>> | null;
@@ -32,6 +34,7 @@ export interface ActiveArtifact {
   readonly key: string;
   readonly assistantMessageId: string;
   readonly toolCallId: string;
+  readonly fileId: string | null;
   readonly title: string | null;
   readonly description: string | null;
   readonly files: Readonly<Record<string, string>>;

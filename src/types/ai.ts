@@ -15,6 +15,7 @@ export interface AnalysisToolOutput {
 
 export interface ArtifactToolOutput {
   readonly title: string;
+  readonly fileId: string | null;
   readonly files: Readonly<Record<string, string>>;
 }
 

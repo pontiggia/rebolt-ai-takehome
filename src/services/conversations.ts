@@ -10,6 +10,7 @@ import type { ConversationDetailResponse } from '@/types/api';
 import { ok, err } from '@/types/result';
 import { eq, and, desc } from 'drizzle-orm';
 import { listConversationMessages } from '@/services/messages';
+import { toFileDataContext } from '@/services/datasets';
 
 export async function getConversation(
   conversationId: string,
@@ -38,12 +39,23 @@ export async function getConversationFileData(conversationId: string): Promise<R
 
   if (!file) return ok(null);
 
-  return ok({
-    fileName: file.fileName,
-    columnNames: file.columnNames,
-    rowCount: file.rowCount,
-    sampleData: file.sampleData,
+  return ok(await toFileDataContext(file));
+}
+
+export async function getFileDataById(fileId: string, userId: string): Promise<Result<FileDataContext, NotFoundError>> {
+  const file = await db.query.files.findFirst({
+    where: and(eq(files.id, fileId), eq(files.userId, userId)),
   });
+
+  if (!file) {
+    return err({
+      type: 'NOT_FOUND',
+      resource: 'file',
+      id: fileId,
+    });
+  }
+
+  return ok(await toFileDataContext(file));
 }
 
 export async function listConversations(userId: string): Promise<Result<Conversation[], never>> {
