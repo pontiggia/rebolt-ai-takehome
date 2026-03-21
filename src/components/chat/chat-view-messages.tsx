@@ -9,6 +9,8 @@ interface ChatViewMessagesProps {
   readonly messages: readonly AppUIMessage[];
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
+  readonly activeArtifactKey: string | null;
+  readonly activeArtifactStatusLabel: string | null;
   readonly isLoading: boolean;
   readonly error: Error | undefined;
   readonly liveActivitiesByToolCallId: ReadonlyMap<string, AgentActivityDataChunk>;
@@ -52,6 +54,8 @@ export function ChatViewMessages({
   messages,
   userInitials,
   userAvatarUrl,
+  activeArtifactKey,
+  activeArtifactStatusLabel,
   isLoading,
   error,
   liveActivitiesByToolCallId,
@@ -76,6 +80,8 @@ export function ChatViewMessages({
               message={message}
               userInitials={userInitials}
               userAvatarUrl={userAvatarUrl}
+              activeArtifactKey={activeArtifactKey}
+              activeArtifactStatusLabel={activeArtifactStatusLabel}
               onArtifactClick={onArtifactClick}
               onOpenFilePreview={onOpenFilePreview}
               liveActivitiesByToolCallId={

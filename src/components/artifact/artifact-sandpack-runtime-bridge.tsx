@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent } from 'react';
 import { useSandpack } from '@codesandbox/sandpack-react';
-import type { ArtifactSandpackProps } from '@/types/components';
+import type { ArtifactRuntimeSurfaceProps } from '@/types/components';
 
 function getSandpackErrorMessage(
   message: Partial<Record<'message' | 'title' | 'description', unknown>>,
@@ -17,7 +17,9 @@ function getSandpackErrorMessage(
   return fallback;
 }
 
-export function ArtifactSandpackRuntimeBridge({ onRuntimeEvent }: Pick<ArtifactSandpackProps, 'onRuntimeEvent'>) {
+export function ArtifactSandpackRuntimeBridge({
+  onRuntimeEvent,
+}: Pick<ArtifactRuntimeSurfaceProps, 'onRuntimeEvent'>) {
   const { sandpack, listen } = useSandpack();
   const emitRuntimeEvent = useEffectEvent(onRuntimeEvent);
 

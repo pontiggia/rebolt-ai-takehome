@@ -11,10 +11,9 @@ export interface ArtifactPanelProps {
   readonly onClose: () => void;
 }
 
-export interface ArtifactSandpackProps {
+export interface ArtifactRuntimeSurfaceProps {
   readonly artifactKey: string;
   readonly files: Readonly<Record<string, string>>;
-  readonly view: ArtifactPanelView;
   readonly onRuntimeEvent: (event: ArtifactRuntimeEvent) => void;
 }
 

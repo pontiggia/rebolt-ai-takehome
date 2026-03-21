@@ -2,6 +2,7 @@
 
 import { ArtifactFallbackMessage } from '@/components/message/artifact-fallback-message';
 import { AssistantMessagePart, GenerateArtifactToolCardPart } from '@/components/message/assistant-message-part';
+import { getArtifactKey } from '@/lib/artifact/artifact-message-selectors';
 import {
   getArtifactCardParts,
   getArtifactFallbackMessage,
@@ -11,12 +12,16 @@ import type { AgentActivityDataChunk, AppUIMessage } from '@/types/ai';
 
 interface AssistantMessageBubbleProps {
   readonly message: AppUIMessage;
+  readonly activeArtifactKey?: string | null;
+  readonly activeArtifactStatusLabel?: string | null;
   readonly onArtifactClick?: () => void;
   readonly liveActivitiesByToolCallId?: ReadonlyMap<string, AgentActivityDataChunk>;
 }
 
 export function AssistantMessageBubble({
   message,
+  activeArtifactKey,
+  activeArtifactStatusLabel,
   onArtifactClick,
   liveActivitiesByToolCallId,
 }: AssistantMessageBubbleProps) {
@@ -41,6 +46,11 @@ export function AssistantMessageBubble({
           <GenerateArtifactToolCardPart
             key={`artifact-${part.toolCallId ?? index}`}
             part={part}
+            statusLabel={
+              getArtifactKey(message.id, part.toolCallId) === activeArtifactKey
+                ? (activeArtifactStatusLabel ?? undefined)
+                : undefined
+            }
             onArtifactClick={onArtifactClick}
           />
         ))}

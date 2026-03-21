@@ -1,12 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { SandpackProvider } from '@codesandbox/sandpack-react';
-import { ArtifactSandpackCodePane } from '@/components/artifact/artifact-sandpack-code-pane';
-import { ArtifactSandpackPreviewPane } from '@/components/artifact/artifact-sandpack-preview-pane';
 import { ArtifactSandpackRuntimeBridge } from '@/components/artifact/artifact-sandpack-runtime-bridge';
 import { ARTIFACT_SANDBOX_SETUP, ARTIFACT_TAILWIND_CDN_URL } from '@/lib/artifact-runtime';
-import type { ArtifactSandpackProps } from '@/types/components';
+import { cn } from '@/lib/utils';
+import type { ArtifactRuntimeSurfaceProps } from '@/types/components';
+
+interface ArtifactSandpackHostProps extends ArtifactRuntimeSurfaceProps {
+  readonly children: ReactNode;
+  readonly className?: string;
+}
 
 const ENTRY_FILE = `
 import React from "react";
@@ -19,12 +23,20 @@ root.render(<App />);
 
 const HIDDEN_FILES = new Set(['/index.tsx', '/src/rebolt-dataset.ts']);
 
-export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: ArtifactSandpackProps) {
+export function ArtifactSandpackHost({
+  artifactKey,
+  files,
+  onRuntimeEvent,
+  children,
+  className,
+}: ArtifactSandpackHostProps) {
   const sandpackFiles = useMemo(() => {
     const result: Record<string, string | { code: string; hidden?: boolean }> = {};
+
     for (const [path, content] of Object.entries(files)) {
       result[path] = HIDDEN_FILES.has(path) ? { code: content, hidden: true } : content;
     }
+
     result['/index.tsx'] = { code: ENTRY_FILE, hidden: true };
     return result;
   }, [files]);
@@ -33,12 +45,14 @@ export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: A
     () => ({
       activeFile: '/src/App.tsx' as string,
       externalResources: [ARTIFACT_TAILWIND_CDN_URL],
+      initMode: 'immediate' as const,
+      autorun: true,
     }),
     [],
   );
 
   return (
-    <div className="artifact-sandpack h-full">
+    <div className={cn('artifact-sandpack h-full w-full', className)}>
       <SandpackProvider
         key={artifactKey}
         template="react-ts"
@@ -47,8 +61,7 @@ export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: A
         options={options}
       >
         <ArtifactSandpackRuntimeBridge onRuntimeEvent={onRuntimeEvent} />
-        <ArtifactSandpackPreviewPane view={view} />
-        <ArtifactSandpackCodePane view={view} />
+        {children}
       </SandpackProvider>
     </div>
   );

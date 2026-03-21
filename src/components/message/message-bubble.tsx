@@ -8,6 +8,8 @@ interface MessageBubbleProps {
   readonly message: AppUIMessage;
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
+  readonly activeArtifactKey?: string | null;
+  readonly activeArtifactStatusLabel?: string | null;
   readonly onArtifactClick?: () => void;
   readonly onOpenFilePreview?: (file: UploadedFileData, trigger: HTMLButtonElement) => void;
   readonly liveActivitiesByToolCallId?: ReadonlyMap<string, AgentActivityDataChunk>;
@@ -17,6 +19,8 @@ export function MessageBubble({
   message,
   userInitials,
   userAvatarUrl,
+  activeArtifactKey,
+  activeArtifactStatusLabel,
   onArtifactClick,
   onOpenFilePreview,
   liveActivitiesByToolCallId,
@@ -35,6 +39,8 @@ export function MessageBubble({
   return (
     <AssistantMessageBubble
       message={message}
+      activeArtifactKey={activeArtifactKey}
+      activeArtifactStatusLabel={activeArtifactStatusLabel}
       onArtifactClick={onArtifactClick}
       liveActivitiesByToolCallId={liveActivitiesByToolCallId}
     />

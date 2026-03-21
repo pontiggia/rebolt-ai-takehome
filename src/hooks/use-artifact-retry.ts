@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ChatStatus } from 'ai';
 import type { ActiveArtifact, ArtifactRetrySource, ArtifactRuntimeEvent, ArtifactRuntimeState } from '@/types/chat';
@@ -34,6 +34,11 @@ interface UseArtifactRetryOptions {
   readonly regenerate: (options?: { messageId?: string; body?: Record<string, unknown> }) => Promise<void>;
 }
 
+interface BufferedRuntimeFailure {
+  readonly signature: string;
+  readonly payload: ArtifactRetryRequestPayload;
+}
+
 export function useArtifactRetry({
   activeArtifactRef,
   messages,
@@ -49,12 +54,14 @@ export function useArtifactRetry({
   const lastRetryPayloadRef = useRef<ArtifactRetryRequestPayload | null>(null);
   const lastToolErrorSignatureRef = useRef<string | null>(null);
   const lastRuntimeErrorSignatureRef = useRef<string | null>(null);
+  const bufferedRuntimeFailureRef = useRef<BufferedRuntimeFailure | null>(null);
 
   const resetForNextArtifact = useCallback(() => {
     pendingRetryRef.current = null;
     lastRetryPayloadRef.current = null;
     lastToolErrorSignatureRef.current = null;
     lastRuntimeErrorSignatureRef.current = null;
+    bufferedRuntimeFailureRef.current = null;
     setRuntimeState(IDLE_RUNTIME_STATE);
   }, []);
 
@@ -65,6 +72,22 @@ export function useArtifactRetry({
       lastError: error,
       source,
     }));
+  }, []);
+
+  const startValidation = useCallback(() => {
+    bufferedRuntimeFailureRef.current = null;
+    setRuntimeState((prev) => {
+      if (prev.status === 'validating' && prev.lastError === null && prev.source === null) {
+        return prev;
+      }
+
+      return {
+        status: 'validating',
+        retryCount: prev.retryCount,
+        lastError: null,
+        source: null,
+      };
+    });
   }, []);
 
   const handleRequestError = useCallback(
@@ -135,6 +158,19 @@ export function useArtifactRetry({
     [activeArtifactRef, chatStatus, conversationId, handleRequestError, regenerate, runtimeState.retryCount],
   );
 
+  useEffect(() => {
+    const bufferedRuntimeFailure = bufferedRuntimeFailureRef.current;
+    if (!bufferedRuntimeFailure || chatStatus !== 'ready' || pendingRetryRef.current) {
+      return;
+    }
+
+    const retryResult = requestRetry(bufferedRuntimeFailure.payload);
+    if (retryResult !== 'blocked') {
+      lastRuntimeErrorSignatureRef.current = bufferedRuntimeFailure.signature;
+      bufferedRuntimeFailureRef.current = null;
+    }
+  }, [chatStatus, requestRetry]);
+
   const handleRequestFinish = useCallback(
     ({ messages: finishedMessages, isAbort, isError }: ChatFinishEvent) => {
       const pendingRetry = pendingRetryRef.current;
@@ -170,11 +206,13 @@ export function useArtifactRetry({
   });
 
   const handleRuntimeEvent = useCallback(
-    (event: ArtifactRuntimeEvent) => {
+    (event: ArtifactRuntimeEvent, options: { autoRetry?: boolean } = {}) => {
       const artifact = activeArtifactRef.current;
       if (!artifact) {
         return;
       }
+
+      const autoRetry = options.autoRetry ?? true;
 
       if (event.type === 'ready') {
         lastRuntimeErrorSignatureRef.current = null;
@@ -209,12 +247,29 @@ export function useArtifactRetry({
         return;
       }
 
-      const retryResult = requestRetry(buildRuntimeRetryPayload(artifact, error, source));
+      if (!autoRetry) {
+        bufferedRuntimeFailureRef.current = null;
+        lastRuntimeErrorSignatureRef.current = signature;
+        setFailureState(error, source);
+        return;
+      }
+
+      const retryPayload = buildRuntimeRetryPayload(artifact, error, source);
+
+      if (chatStatus !== 'ready') {
+        bufferedRuntimeFailureRef.current = {
+          signature,
+          payload: retryPayload,
+        };
+        return;
+      }
+
+      const retryResult = requestRetry(retryPayload);
       if (retryResult !== 'blocked') {
         lastRuntimeErrorSignatureRef.current = signature;
       }
     },
-    [activeArtifactRef, requestRetry],
+    [activeArtifactRef, chatStatus, requestRetry, setFailureState],
   );
 
   const handleManualRetry = useCallback(() => {
@@ -241,6 +296,7 @@ export function useArtifactRetry({
 
   return {
     runtimeState,
+    startValidation,
     handleManualRetry,
     handleRuntimeEvent,
     handleRequestError,

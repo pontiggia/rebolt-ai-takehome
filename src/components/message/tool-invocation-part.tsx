@@ -83,14 +83,16 @@ export function GenerateArtifactToolInstructionsPart({ part }: { readonly part: 
 
 export function GenerateArtifactToolCardPart({
   part,
+  statusLabel,
   onArtifactClick,
 }: {
   readonly part: GenerateArtifactToolInvocation;
+  readonly statusLabel?: string;
   readonly onArtifactClick?: () => void;
 }) {
   if (part.state !== 'output-available') {
     return null;
   }
 
-  return <ArtifactCard title={part.output.title} onClick={onArtifactClick} />;
+  return <ArtifactCard title={part.output.title} statusLabel={statusLabel} onClick={onArtifactClick} />;
 }

@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { listSuccessfulArtifactKeys } from '@/lib/artifact/artifact-message-selectors';
 import { toUploadedFileData, getUploadedFileRefs } from '@/lib/chat/user-message-parts';
 import { useAppChat } from '@/hooks/use-app-chat';
 import { useArtifactRequestRelay } from '@/hooks/use-artifact-request-relay';
@@ -17,7 +19,15 @@ import { ChatViewEmptyState } from '@/components/chat/chat-view-empty-state';
 import { ComposerInput } from '@/components/chat/composer-input';
 import { FilePreviewDialog } from '@/components/chat/file-preview-dialog';
 import type { MessageResponse } from '@/types/api';
-import type { UploadedFileData } from '@/types/ai';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
+
+const ArtifactBackgroundValidator = dynamic(
+  () => import('@/components/artifact/artifact-background-validator').then((m) => m.ArtifactBackgroundValidator),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
 
 interface ChatViewProps {
   readonly userInitials: string;
@@ -33,6 +43,19 @@ export function ChatView({
   initialMessages = [],
 }: ChatViewProps) {
   const conversation = useConversation({ propsConversationId, initialMessages });
+  const historicalArtifactKeys = useMemo(
+    () =>
+      new Set(
+        listSuccessfulArtifactKeys(
+          initialMessages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            parts: message.parts as AppUIMessage['parts'],
+          })),
+        ),
+      ),
+    [initialMessages],
+  );
   const {
     handleData: handleAgentActivityData,
     syncForChatState,
@@ -73,14 +96,16 @@ export function ChatView({
 
   const {
     activeArtifact,
+    activeArtifactStatusLabel,
     runtimeState,
+    shouldValidateActiveArtifact,
     handleManualRetry,
     handleRuntimeEvent,
     handleRequestError,
     handleRequestFinish,
-    resetRuntimeState,
   } = useArtifact({
     messages,
+    historicalArtifactKeys,
     conversationId: conversation.chatConversationId,
     latestFileId,
     chatStatus: status,
@@ -161,9 +186,8 @@ export function ChatView({
   );
 
   const handleCloseArtifactPanel = useCallback(() => {
-    resetRuntimeState();
     setIsOpen(false);
-  }, [resetRuntimeState, setIsOpen]);
+  }, [setIsOpen]);
 
   const handleOpenArtifactPanel = useCallback(() => {
     setIsOpen(true);
@@ -195,6 +219,8 @@ export function ChatView({
         messages={messages}
         userInitials={userInitials}
         userAvatarUrl={userAvatarUrl}
+        activeArtifactKey={activeArtifact?.key ?? null}
+        activeArtifactStatusLabel={activeArtifactStatusLabel}
         isLoading={isLoading}
         error={error}
         liveActivitiesByToolCallId={liveActivitiesByToolCallId}
@@ -203,6 +229,13 @@ export function ChatView({
         onArtifactClick={handleOpenArtifactPanel}
         onOpenFilePreview={handleOpenFilePreview}
       />
+      {activeArtifact && !isOpen && shouldValidateActiveArtifact ? (
+        <ArtifactBackgroundValidator
+          artifactKey={activeArtifact.key}
+          files={activeArtifact.files}
+          onRuntimeEvent={handleRuntimeEvent}
+        />
+      ) : null}
       <ChatViewArtifactPane
         artifact={activeArtifact}
         isOpen={isOpen}

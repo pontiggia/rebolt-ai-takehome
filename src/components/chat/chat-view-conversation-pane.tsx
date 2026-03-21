@@ -6,6 +6,8 @@ interface ChatViewConversationPaneProps {
   readonly messages: readonly AppUIMessage[];
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
+  readonly activeArtifactKey: string | null;
+  readonly activeArtifactStatusLabel: string | null;
   readonly isLoading: boolean;
   readonly error: Error | undefined;
   readonly liveActivitiesByToolCallId: ReadonlyMap<string, AgentActivityDataChunk>;
@@ -19,6 +21,8 @@ export function ChatViewConversationPane({
   messages,
   userInitials,
   userAvatarUrl,
+  activeArtifactKey,
+  activeArtifactStatusLabel,
   isLoading,
   error,
   liveActivitiesByToolCallId,
@@ -33,6 +37,8 @@ export function ChatViewConversationPane({
         messages={messages}
         userInitials={userInitials}
         userAvatarUrl={userAvatarUrl}
+        activeArtifactKey={activeArtifactKey}
+        activeArtifactStatusLabel={activeArtifactStatusLabel}
         isLoading={isLoading}
         error={error}
         liveActivitiesByToolCallId={liveActivitiesByToolCallId}
