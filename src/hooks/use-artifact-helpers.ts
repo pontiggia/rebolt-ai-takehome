@@ -1,5 +1,5 @@
-import type { ChatOnFinishCallback, UIMessage } from 'ai';
-import type { ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
+import type { ChatOnFinishCallback } from 'ai';
+import type { AppUIMessage, ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
 import type {
   ActiveArtifact,
   ArtifactRetryPayload,
@@ -18,7 +18,7 @@ export const IDLE_RUNTIME_STATE: ArtifactRuntimeState = {
 
 export type RetryRequestResult = 'started' | 'blocked' | 'exhausted';
 export type ArtifactRetryRequestPayload = Omit<ArtifactRetryPayload, 'attempt' | 'manual'>;
-export type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
+export type ChatFinishEvent = Parameters<ChatOnFinishCallback<AppUIMessage>>[0];
 
 type GenerateArtifactPart = {
   type: 'tool-generateArtifact';
@@ -66,11 +66,11 @@ export function stripDatasetAccessError(error: string): string {
   return error.replace(ARTIFACT_DATASET_ERROR_MARKER, '').trim();
 }
 
-function getGenerateArtifactPart(part: UIMessage['parts'][number]): GenerateArtifactPart | null {
+function getGenerateArtifactPart(part: AppUIMessage['parts'][number]): GenerateArtifactPart | null {
   return part.type === 'tool-generateArtifact' ? (part as GenerateArtifactPart) : null;
 }
 
-export function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): ActiveArtifact | null {
+export function findLatestSuccessfulArtifact(messages: readonly AppUIMessage[]): ActiveArtifact | null {
   for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
     const message = messages[messageIndex];
     if (message.role !== 'assistant') {
@@ -101,7 +101,7 @@ export function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): Ac
 }
 
 export function findLatestGenerateArtifactToolError(
-  messages: readonly UIMessage[],
+  messages: readonly AppUIMessage[],
   fallbackFileId: string | null,
 ): GenerateArtifactToolError | null {
   for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {

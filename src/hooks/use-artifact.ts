@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import type { ChatStatus, UIMessage } from 'ai';
+import type { ChatStatus } from 'ai';
 import type {
   ArtifactRetryPayload,
   ArtifactRetrySource,
@@ -26,9 +26,10 @@ import {
   toRuntimeSource,
 } from '@/hooks/use-artifact-helpers';
 import { useArtifactToolErrorRetry } from '@/hooks/use-artifact-tool-error-retry';
+import type { AppUIMessage } from '@/types/ai';
 
 interface UseArtifactOptions {
-  readonly messages: UIMessage[];
+  readonly messages: AppUIMessage[];
   readonly conversationId: string | null;
   readonly latestFileId: string | null;
   readonly chatStatus: ChatStatus;

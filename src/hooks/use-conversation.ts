@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
-import type { UIMessage } from 'ai';
 import { createConversation, createConversationOnly } from '@/actions/conversations';
 import type { FileMetadataResponse, MessageResponse } from '@/types/api';
+import type { AppUIMessage } from '@/types/ai';
 
 interface UseConversationOptions {
   readonly propsConversationId?: string;
@@ -12,7 +12,7 @@ interface UseConversationOptions {
 
 export function useConversation({ propsConversationId, initialMessages }: UseConversationOptions) {
   const [pendingConversationId, setPendingConversationId] = useState<string | null>(null);
-  const [createdMessages, setCreatedMessages] = useState<UIMessage[]>([]);
+  const [createdMessages, setCreatedMessages] = useState<AppUIMessage[]>([]);
   const [creationError, setCreationError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -20,12 +20,12 @@ export function useConversation({ propsConversationId, initialMessages }: UseCon
   const chatConversationId = propsConversationId ?? (createdMessages.length > 0 ? pendingConversationId : null);
   const isEmptyState = !propsConversationId && createdMessages.length === 0;
 
-  const chatMessages: UIMessage[] =
+  const chatMessages: AppUIMessage[] =
     initialMessages.length > 0
       ? initialMessages.map((message) => ({
           id: message.id,
           role: message.role,
-          parts: message.parts as UIMessage['parts'],
+          parts: message.parts as AppUIMessage['parts'],
         }))
       : createdMessages;
 

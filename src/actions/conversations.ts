@@ -9,9 +9,9 @@ import { createInitialUserMessage } from '@/services/messages';
 import { deleteConversation as deleteConversationService } from '@/services/conversations';
 import { generateTitle } from '@/services/ai';
 import { uuidv7 } from 'uuidv7';
-import type { UIMessage } from 'ai';
+import type { AppUIMessage } from '@/types/ai';
 
-function createTextUserMessage(text: string): UIMessage {
+function createTextUserMessage(text: string): AppUIMessage {
   return {
     id: uuidv7(),
     role: 'user',

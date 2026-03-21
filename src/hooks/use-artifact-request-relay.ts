@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import type { ChatOnFinishCallback, UIMessage } from 'ai';
+import type { ChatOnFinishCallback } from 'ai';
+import type { AppUIMessage } from '@/types/ai';
 
-type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
+type ChatFinishEvent = Parameters<ChatOnFinishCallback<AppUIMessage>>[0];
 
 interface ArtifactRequestRelayCallbacks {
   readonly onError?: (error: Error) => void;
