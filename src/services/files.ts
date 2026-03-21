@@ -6,9 +6,10 @@ import type { FileRecord } from '@/db/schema';
 import type { FilePreviewResponse } from '@/types/api';
 import type { Result } from '@/types/result';
 import type { FileError } from '@/types/errors';
-import type { ParsedFileData, AllowedFileType } from '@/types/file';
+import type { ParsedFileData } from '@/types/file';
 import { ok, err } from '@/types/result';
-import { FILE_LIMITS, ALLOWED_FILE_TYPES } from '@/types/file';
+import { FILE_LIMITS } from '@/types/file';
+import { validateUploadableFile } from '@/lib/files/file-validation';
 
 const FILE_PREVIEW_MAX_LINES = 160;
 const FILE_PREVIEW_MAX_BYTES = 24 * 1024;
@@ -32,23 +33,7 @@ function removeEmptyRows(rows: readonly Record<string, unknown>[]): Record<strin
 }
 
 export function validateFile(file: File): Result<void, FileError> {
-  if (!ALLOWED_FILE_TYPES.includes(file.type as AllowedFileType)) {
-    return err({
-      type: 'FILE_ERROR',
-      message: `Invalid file type: ${file.type}. Allowed: CSV, XLSX.`,
-      code: 'INVALID_TYPE',
-    });
-  }
-
-  if (file.size > FILE_LIMITS.maxSizeBytes) {
-    return err({
-      type: 'FILE_ERROR',
-      message: `File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Max: 5MB.`,
-      code: 'TOO_LARGE',
-    });
-  }
-
-  return ok(undefined);
+  return validateUploadableFile(file);
 }
 
 export function parseFileContents(buffer: Buffer, fileType: string): Result<ParsedFileData, FileError> {

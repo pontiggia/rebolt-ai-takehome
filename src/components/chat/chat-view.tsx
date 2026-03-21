@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { listSuccessfulArtifactKeys } from '@/lib/artifact/artifact-message-selectors';
 import { toUploadedFileData, getUploadedFileRefs } from '@/lib/chat/user-message-parts';
 import { useAppChat } from '@/hooks/use-app-chat';
@@ -42,6 +43,7 @@ export function ChatView({
   conversationId: propsConversationId,
   initialMessages = [],
 }: ChatViewProps) {
+  const router = useRouter();
   const conversation = useConversation({ propsConversationId, initialMessages });
   const historicalArtifactKeys = useMemo(
     () =>
@@ -83,9 +85,19 @@ export function ChatView({
     onFinish: relayArtifactFinish,
   });
 
+  const handleConversationAdopted = useCallback(
+    (conversationId: string) => {
+      conversation.adoptPendingConversation?.(conversationId);
+      startTransition(() => {
+        router.refresh();
+      });
+    },
+    [conversation, router],
+  );
+
   const fileUpload = useFileUpload({
     conversationId: conversation.fileConversationId,
-    onConversationNeeded: conversation.onConversationNeeded,
+    onConversationAdopted: conversation.adoptPendingConversation ? handleConversationAdopted : undefined,
   });
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -152,7 +164,7 @@ export function ChatView({
     const hasUploadedFiles = uploadedFiles.length > 0;
 
     if (conversation.isEmptyState) {
-      conversation.createFirstMessage(input.trim(), hasUploadedFiles ? uploadedFiles : null, () => {
+      conversation.createFirstMessage(input, hasUploadedFiles ? uploadedFiles : null, () => {
         fileUpload.clearFiles();
       });
       return;

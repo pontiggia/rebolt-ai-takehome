@@ -1,22 +1,13 @@
-import { createUIMessageStreamResponse, safeValidateUIMessages } from 'ai';
-import type { Tool } from 'ai';
-import { z } from 'zod/v4';
+import { createUIMessageStreamResponse } from 'ai';
 import { invalidRequestError, parseJsonBody, withAuthHandler } from '@/lib/api';
 import { getConversation, getConversationFileData, getFileDataById } from '@/services/conversations';
 import { errorResponse } from '@/types/errors';
 import { chatBodySchema } from '@/types/api';
 import { buildChatModelMessages } from '@/lib/chat/build-chat-model-messages';
 import { createChatUIStream } from '@/lib/chat/create-chat-ui-stream';
+import { validateAppUIMessages } from '@/lib/chat/validate-app-ui-messages';
 import { createChatTools } from '@/lib/tools';
 import { syncConversationMessages } from '@/services/messages';
-import type { AppUIMessage } from '@/types/ai';
-
-const uploadedFileDataSchema = z.object({
-  fileId: z.string().uuid(),
-  fileName: z.string().min(1),
-  fileType: z.string().min(1),
-  rowCount: z.number().int().nonnegative(),
-});
 
 export const POST = withAuthHandler(async (req, { user }) => {
   const parsedBody = await parseJsonBody(req, chatBodySchema);
@@ -42,12 +33,9 @@ export const POST = withAuthHandler(async (req, { user }) => {
 
   const fileData = fileResult.value;
   const tools = createChatTools(fileData);
-  const validatedMessages = await safeValidateUIMessages<AppUIMessage>({
+  const validatedMessages = await validateAppUIMessages({
     messages: rawMessages,
-    dataSchemas: {
-      'uploaded-file': uploadedFileDataSchema,
-    },
-    tools: tools as Record<string, Tool<unknown, unknown>>,
+    tools,
   });
 
   if (!validatedMessages.success) {

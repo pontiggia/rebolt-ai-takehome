@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
-import { createConversation, createConversationOnly } from '@/actions/conversations';
+import { createConversation } from '@/actions/conversations';
+import { validateFirstMessageText } from '@/lib/chat/first-message-validation';
 import { buildUserMessageParts } from '@/lib/chat/user-message-parts';
 import type { MessageResponse } from '@/types/api';
 import type { AppUIMessage, UploadedFileData } from '@/types/ai';
+
+const CREATE_CONVERSATION_ERROR_MESSAGE = 'Failed to create conversation. Please try again.';
 
 interface UseConversationOptions {
   readonly propsConversationId?: string;
@@ -30,25 +33,34 @@ export function useConversation({ propsConversationId, initialMessages }: UseCon
         }))
       : createdMessages;
 
-  const onConversationNeeded = useCallback(async () => {
-    const { id } = await createConversationOnly();
-    setPendingConversationId(id);
-    return id;
+  const adoptPendingConversation = useCallback((conversationId: string) => {
+    setPendingConversationId(conversationId);
+    setCreationError(null);
   }, []);
 
   const createFirstMessage = useCallback(
     (text: string, uploadedFiles: readonly UploadedFileData[] | null, onFilesHandled: () => void) => {
-      if (!text.trim() || isPending) return;
-      setCreationError(null);
+      if (isPending) {
+        return;
+      }
 
-      const messageText = text.trim();
+      const validation = validateFirstMessageText(text);
+      if (!validation.ok) {
+        setCreationError(validation.error.message);
+        return;
+      }
+
+      setCreationError(null);
+      const messageText = validation.value;
       startTransition(async () => {
         try {
-          const { id, messageId } = await createConversation(
-            messageText,
-            pendingConversationId ?? undefined,
-            uploadedFiles ?? [],
-          );
+          const result = await createConversation(messageText, pendingConversationId ?? undefined, uploadedFiles ?? []);
+          if (!result.ok) {
+            setCreationError(result.error.message);
+            return;
+          }
+
+          const { id, messageId } = result.value;
 
           setCreatedMessages([
             {
@@ -62,8 +74,8 @@ export function useConversation({ propsConversationId, initialMessages }: UseCon
           if (uploadedFiles) {
             onFilesHandled();
           }
-        } catch (e) {
-          setCreationError(e instanceof Error ? e.message : 'Failed to create conversation');
+        } catch {
+          setCreationError(CREATE_CONVERSATION_ERROR_MESSAGE);
         }
       });
     },
@@ -83,7 +95,7 @@ export function useConversation({ propsConversationId, initialMessages }: UseCon
     isPending,
     creationError,
     isEmptyState,
-    onConversationNeeded: propsConversationId ? undefined : onConversationNeeded,
+    adoptPendingConversation: propsConversationId ? undefined : adoptPendingConversation,
     createFirstMessage,
   } as const;
 }

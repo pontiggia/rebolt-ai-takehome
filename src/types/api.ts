@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { FIRST_MESSAGE_MAX_LENGTH, FIRST_MESSAGE_MIN_LENGTH } from '@/lib/chat/first-message-validation';
 import { ARTIFACT_RETRY_SOURCES, type PersistedChatParts } from '@/types/chat';
 
 // ─── Chat ───
@@ -32,12 +33,13 @@ export const chatBodySchema = z.object({
 export type ChatBody = z.infer<typeof chatBodySchema>;
 
 export const createConversationBodySchema = z.object({
-  initialMessage: z.string().trim().min(1).max(4000).optional(),
+  initialMessage: z.string().trim().min(FIRST_MESSAGE_MIN_LENGTH).max(FIRST_MESSAGE_MAX_LENGTH).optional(),
 });
 export type CreateConversationBody = z.infer<typeof createConversationBodySchema>;
 
 // ─── Upload ───
 export interface UploadResponse {
+  readonly conversationId: string;
   readonly fileId: string;
   readonly fileName: string;
   readonly blobUrl: string;
