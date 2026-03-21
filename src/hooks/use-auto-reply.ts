@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { UIMessage } from 'ai';
 import type { MessageResponse } from '@/types/api';
+import type { AppUIMessage } from '@/types/ai';
 
 interface UseAutoReplyOptions {
   readonly propsConversationId?: string;
   readonly chatConversationId: string | null;
-  readonly messages: UIMessage[];
+  readonly messages: AppUIMessage[];
   readonly initialMessages: readonly MessageResponse[];
   readonly regenerate: () => void;
 }

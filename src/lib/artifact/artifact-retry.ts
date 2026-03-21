@@ -1,5 +1,5 @@
-import type { ChatOnFinishCallback, UIMessage } from 'ai';
-import type { ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
+import type { ChatOnFinishCallback } from 'ai';
+import type { AppUIMessage } from '@/types/ai';
 import type {
   ActiveArtifact,
   ArtifactRetryPayload,
@@ -18,21 +18,7 @@ export const IDLE_RUNTIME_STATE: ArtifactRuntimeState = {
 
 export type RetryRequestResult = 'started' | 'blocked' | 'exhausted';
 export type ArtifactRetryRequestPayload = Omit<ArtifactRetryPayload, 'attempt' | 'manual'>;
-export type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
-
-type GenerateArtifactPart = {
-  type: 'tool-generateArtifact';
-  toolCallId: string;
-  state: string;
-  input?: unknown;
-  output?: unknown;
-  errorText?: string;
-};
-
-export interface GenerateArtifactToolError {
-  readonly signature: string;
-  readonly payload: ArtifactRetryRequestPayload;
-}
+export type ChatFinishEvent = Parameters<ChatOnFinishCallback<AppUIMessage>>[0];
 
 export interface PendingRetry {
   readonly payload: ArtifactRetryPayload;
@@ -64,77 +50,6 @@ export function isDatasetAccessError(error: string): boolean {
 
 export function stripDatasetAccessError(error: string): string {
   return error.replace(ARTIFACT_DATASET_ERROR_MARKER, '').trim();
-}
-
-function getGenerateArtifactPart(part: UIMessage['parts'][number]): GenerateArtifactPart | null {
-  return part.type === 'tool-generateArtifact' ? (part as GenerateArtifactPart) : null;
-}
-
-export function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): ActiveArtifact | null {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const message = messages[messageIndex];
-    if (message.role !== 'assistant') {
-      continue;
-    }
-
-    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
-      const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-available' || !part.output) {
-        continue;
-      }
-
-      const output = part.output as ArtifactToolOutput;
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        key: `${message.id}:${part.toolCallId}`,
-        assistantMessageId: message.id,
-        toolCallId: part.toolCallId,
-        fileId: output.fileId ?? null,
-        title: output.title ?? input?.title ?? null,
-        description: input?.description ?? null,
-        files: output.files,
-      };
-    }
-  }
-
-  return null;
-}
-
-export function findLatestGenerateArtifactToolError(
-  messages: readonly UIMessage[],
-  fallbackFileId: string | null,
-): GenerateArtifactToolError | null {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const message = messages[messageIndex];
-    if (message.role !== 'assistant') {
-      continue;
-    }
-
-    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
-      const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-error' || !part.errorText) {
-        continue;
-      }
-
-      const error = normalizeErrorMessage(part.errorText, 'Artifact generation failed.');
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        signature: `${message.id}:${part.toolCallId}:${error}`,
-        payload: {
-          assistantMessageId: message.id,
-          artifactToolCallId: part.toolCallId,
-          fileId: fallbackFileId,
-          artifactTitle: input?.title ?? null,
-          artifactDescription: input?.description ?? null,
-          files: null,
-          error,
-          source: 'tool-output-error',
-        },
-      };
-    }
-  }
-
-  return null;
 }
 
 export function toRuntimeSource(event: Exclude<ArtifactRuntimeEvent, { type: 'ready' }>): ArtifactRetrySource {

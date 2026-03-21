@@ -1,7 +1,7 @@
-import type { UIMessage } from 'ai';
 import { pgTable, text, timestamp, integer, jsonb, uuid, varchar, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
+import type { AppUIMessage } from '@/types/ai';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -41,7 +41,7 @@ export const messages = pgTable(
     uiMessageId: text('ui_message_id').notNull(),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
-    parts: jsonb('parts').$type<UIMessage['parts']>().notNull(),
+    parts: jsonb('parts').$type<AppUIMessage['parts']>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [

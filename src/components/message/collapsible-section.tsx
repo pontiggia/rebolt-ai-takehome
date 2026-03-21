@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useDisclosure } from '@/hooks/use-disclosure';
 
 export function CollapsibleSection({
   label,
@@ -9,11 +9,13 @@ export function CollapsibleSection({
   readonly label: string;
   readonly children: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const { expanded, toggle } = useDisclosure();
+
   return (
     <div className="my-2">
       <button
-        onClick={() => setExpanded((prev) => !prev)}
+        type="button"
+        onClick={toggle}
         className="text-sm text-muted-foreground/70 transition-colors hover:text-muted-foreground"
       >
         {expanded ? '▾' : '▸'} {label}

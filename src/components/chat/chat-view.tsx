@@ -9,6 +9,7 @@ import { useSentFiles } from '@/hooks/use-sent-files';
 import { useAutoReply } from '@/hooks/use-auto-reply';
 import { useArtifact } from '@/hooks/use-artifact';
 import { useArtifactPanel } from '@/hooks/use-artifact-panel';
+import { useLiveAgentActivity } from '@/hooks/use-live-agent-activity';
 import { ChatViewArtifactPane } from '@/components/chat/chat-view-artifact-pane';
 import { ChatViewConversationPane } from '@/components/chat/chat-view-conversation-pane';
 import { ChatViewEmptyState } from '@/components/chat/chat-view-empty-state';
@@ -32,6 +33,12 @@ export function ChatView({
 }: ChatViewProps) {
   const conversation = useConversation({ propsConversationId, initialMessages });
   const {
+    handleData: handleAgentActivityData,
+    syncForChatState,
+    liveActivitiesByToolCallId,
+    liveActivityCount,
+  } = useLiveAgentActivity();
+  const {
     relayError: relayArtifactError,
     relayFinish: relayArtifactFinish,
     setCallbacks: setArtifactRequestCallbacks,
@@ -47,6 +54,7 @@ export function ChatView({
     regenerate,
     error,
   } = useAppChat(conversation.chatConversationId, conversation.chatMessages, {
+    onData: handleAgentActivityData,
     onError: relayArtifactError,
     onFinish: relayArtifactFinish,
   });
@@ -96,6 +104,10 @@ export function ChatView({
       onFinish: handleRequestFinish,
     });
   }, [handleRequestError, handleRequestFinish, setArtifactRequestCallbacks]);
+
+  useEffect(() => {
+    syncForChatState(messages, status);
+  }, [messages, status, syncForChatState]);
 
   // Clear input when transitioning from empty state to conversation
   useEffect(() => {
@@ -162,6 +174,8 @@ export function ChatView({
         sentFilesMap={sentFilesMap}
         isLoading={isLoading}
         error={error}
+        liveActivitiesByToolCallId={liveActivitiesByToolCallId}
+        liveActivityCount={liveActivityCount}
         composer={composerInput}
         onArtifactClick={handleOpenArtifactPanel}
       />

@@ -1,9 +1,14 @@
 'use client';
 
-import type { AnalysisToolOutput, ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
-import { ToolLoadingIndicator } from '@/components/message/tool-loading-indicator';
-import { CollapsibleSection } from '@/components/message/collapsible-section';
 import { ArtifactCard } from '@/components/artifact/artifact-card';
+import { CollapsibleSection } from '@/components/message/collapsible-section';
+import { describeReadDatasetRowsOutput } from '@/lib/agent-activity';
+import type {
+  AnalyzeDataToolInvocation,
+  ArtifactToolInput,
+  GenerateArtifactToolInvocation,
+  ReadDatasetRowsToolInvocation,
+} from '@/types/ai';
 
 function ToolErrorSection({ label, error, description }: { label: string; error: string; description?: string }) {
   return (
@@ -14,86 +19,78 @@ function ToolErrorSection({ label, error, description }: { label: string; error:
   );
 }
 
-export function ToolInvocationPart({
-  toolName,
-  part,
-  onArtifactClick,
-  mode,
-}: {
-  toolName: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  part: any;
-  onArtifactClick?: () => void;
-  mode?: 'instructions' | 'card';
-}) {
-  if (part.state === 'input-streaming' || part.state === 'input-available') {
-    if (toolName === 'analyzeData') return <ToolLoadingIndicator label="Analyzing data..." />;
-    if (toolName === 'readDatasetRows') return <ToolLoadingIndicator label="Inspecting full dataset..." />;
-    if (toolName === 'generateArtifact') return <ToolLoadingIndicator label="Generating visualization..." />;
-  }
-
+export function AnalyzeDataToolPart({ part }: { readonly part: AnalyzeDataToolInvocation }) {
   if (part.state === 'output-error') {
-    if (toolName === 'generateArtifact' && mode === 'card') {
-      return null;
-    }
-
-    if (toolName === 'generateArtifact') {
-      const input = part.input as Partial<ArtifactToolInput> | undefined;
-      return (
-        <ToolErrorSection
-          label="Artifact generation failed"
-          error={part.errorText}
-          description={mode === 'instructions' ? input?.description : undefined}
-        />
-      );
-    }
-
-    if (toolName === 'analyzeData') {
-      return <ToolErrorSection label="Analysis failed" error={part.errorText} />;
-    }
-
-    if (toolName === 'readDatasetRows') {
-      return <ToolErrorSection label="Dataset inspection failed" error={part.errorText} />;
-    }
-
-    return <ToolErrorSection label={`${toolName} failed`} error={part.errorText} />;
+    return <ToolErrorSection label="Analysis failed" error={part.errorText} />;
   }
 
-  if (part.state !== 'output-available') return null;
+  if (part.state !== 'output-available') {
+    return null;
+  }
 
-  if (toolName === 'analyzeData') {
-    const result = part.output as AnalysisToolOutput;
+  return (
+    <CollapsibleSection label="Analysis">
+      <p>{part.output.summary}</p>
+      {part.output.insights.length > 0 && (
+        <ul className="mt-1 list-disc pl-4">
+          {part.output.insights.map((insight, index) => (
+            <li key={index}>{insight}</li>
+          ))}
+        </ul>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+export function ReadDatasetRowsToolPart({ part }: { readonly part: ReadDatasetRowsToolInvocation }) {
+  if (part.state === 'output-error') {
+    return <ToolErrorSection label="Dataset inspection failed" error={part.errorText} />;
+  }
+
+  if (part.state !== 'output-available') {
+    return null;
+  }
+
+  return (
+    <CollapsibleSection label="Dataset inspection">
+      <p>{describeReadDatasetRowsOutput(part.output)}</p>
+    </CollapsibleSection>
+  );
+}
+
+export function GenerateArtifactToolInstructionsPart({ part }: { readonly part: GenerateArtifactToolInvocation }) {
+  if (part.state === 'output-error') {
+    const input = part.input as Partial<ArtifactToolInput> | undefined;
     return (
-      <CollapsibleSection label="Analysis">
-        <p>{result.summary}</p>
-        {result.insights.length > 0 && (
-          <ul className="mt-1 list-disc pl-4">
-            {result.insights.map((insight, j) => (
-              <li key={j}>{insight}</li>
-            ))}
-          </ul>
-        )}
-      </CollapsibleSection>
+      <ToolErrorSection label="Artifact generation failed" error={part.errorText} description={input?.description} />
     );
   }
 
-  if (toolName === 'generateArtifact') {
-    const result = part.output as ArtifactToolOutput;
-    const input = part.input as ArtifactToolInput;
-
-    if (mode === 'instructions') {
-      if (!input?.description) return null;
-      return (
-        <CollapsibleSection label="Instructions sent to code generator">
-          <p>{input.description}</p>
-        </CollapsibleSection>
-      );
-    }
-
-    if (mode === 'card') {
-      return <ArtifactCard title={result.title} onClick={onArtifactClick} />;
-    }
+  if (part.state !== 'output-available') {
+    return null;
   }
 
-  return null;
+  if (!part.input.description) {
+    return null;
+  }
+
+  return (
+    <CollapsibleSection label="Instructions sent to code generator">
+      <p>{part.input.description}</p>
+    </CollapsibleSection>
+  );
+}
+
+export function GenerateArtifactToolCardPart({
+  part,
+  onArtifactClick,
+}: {
+  readonly part: GenerateArtifactToolInvocation;
+  readonly onArtifactClick?: () => void;
+}) {
+  if (part.state !== 'output-available') {
+    return null;
+  }
+
+  return <ArtifactCard title={part.output.title} onClick={onArtifactClick} />;
 }

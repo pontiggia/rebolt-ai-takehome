@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { MutableRefObject } from 'react';
-import type {
-  GenerateArtifactToolError,
-  ArtifactRetryRequestPayload,
-  RetryRequestResult,
-} from '@/hooks/use-artifact-helpers';
+import type { RefObject } from 'react';
+import type { ArtifactRetryRequestPayload, RetryRequestResult } from '@/lib/artifact/artifact-retry';
+import type { GenerateArtifactToolError } from '@/lib/artifact/artifact-message-selectors';
 
 interface UseArtifactToolErrorRetryOptions {
   readonly latestToolError: GenerateArtifactToolError | null;
-  readonly lastToolErrorSignatureRef: MutableRefObject<string | null>;
+  readonly lastToolErrorSignatureRef: RefObject<string | null>;
   readonly requestRetry: (payload: ArtifactRetryRequestPayload) => RetryRequestResult;
 }
 

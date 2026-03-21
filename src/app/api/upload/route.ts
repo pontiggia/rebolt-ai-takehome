@@ -1,16 +1,7 @@
-import { put } from '@vercel/blob';
 import { withAuthHandler, invalidRequestError } from '@/lib/api';
-import { validateFile, parseFileContents } from '@/services/files';
-import { storeDatasetForUpload } from '@/services/datasets';
+import { uploadConversationFile } from '@/services/uploads';
 import { errorResponse } from '@/types/errors';
-import { FILE_LIMITS } from '@/types/file';
-import type { UploadResponse } from '@/types/api';
-import { db } from '@/db/client';
-import { conversations, files } from '@/db/schema';
-import { getConversation } from '@/services/conversations';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod/v4';
-import { uuidv7 } from 'uuidv7';
 
 const uploadFormSchema = z.object({
   conversationId: z.string().uuid(),
@@ -29,61 +20,14 @@ export const POST = withAuthHandler(async (req, { user }) => {
   }
 
   const { conversationId, file } = parsedForm.data;
-
-  const conversation = await getConversation(conversationId, user.id);
-  if (!conversation.ok) {
-    return errorResponse(conversation.error);
+  const uploadResult = await uploadConversationFile({
+    conversationId,
+    userId: user.id,
+    file,
+  });
+  if (!uploadResult.ok) {
+    return errorResponse(uploadResult.error);
   }
 
-  const validation = validateFile(file);
-  if (!validation.ok) return errorResponse(validation.error);
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const parsed = parseFileContents(buffer, file.type);
-  if (!parsed.ok) return errorResponse(parsed.error);
-
-  const fileId = uuidv7();
-  const sampleData = parsed.value.rows.slice(0, FILE_LIMITS.sampleSize) as Record<string, unknown>[];
-  const [blob] = await Promise.all([
-    put(file.name, file, { access: 'public', addRandomSuffix: true }),
-    storeDatasetForUpload(
-      {
-        id: fileId,
-        fileName: file.name,
-        columnNames: [...parsed.value.columnNames],
-        rowCount: parsed.value.rowCount,
-      },
-      parsed.value.rows,
-    ),
-  ]);
-
-  const [fileRecord] = await db
-    .insert(files)
-    .values({
-      id: fileId,
-      userId: user.id,
-      conversationId,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      blobUrl: blob.url,
-      columnNames: [...parsed.value.columnNames],
-      rowCount: parsed.value.rowCount,
-      sampleData,
-    })
-    .returning();
-
-  await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, conversationId));
-
-  const response: UploadResponse = {
-    fileId: fileRecord.id,
-    fileName: fileRecord.fileName,
-    blobUrl: fileRecord.blobUrl,
-    columnNames: parsed.value.columnNames,
-    rowCount: parsed.value.rowCount,
-    preview: parsed.value.rows.slice(0, 5),
-    truncated: parsed.value.truncated,
-  };
-
-  return Response.json(response);
+  return Response.json(uploadResult.value);
 });

@@ -1,21 +1,21 @@
 import 'server-only';
 
-import type { UIMessage } from 'ai';
 import { and, asc, eq, notInArray } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { conversations as conversationsTable, messages as messagesTable } from '@/db/schema';
 import type { MessageResponse } from '@/types/api';
+import type { AppUIMessage } from '@/types/ai';
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function extractTextFromParts(parts: UIMessage['parts']): string {
+function extractTextFromParts(parts: AppUIMessage['parts']): string {
   return parts
     .flatMap((part) => (part.type === 'text' ? [part.text] : []))
     .join('\n\n')
     .trim();
 }
 
-function toStoredMessageValues(conversationId: string, message: UIMessage) {
+function toStoredMessageValues(conversationId: string, message: AppUIMessage) {
   return {
     conversationId,
     uiMessageId: message.id,
@@ -32,7 +32,7 @@ async function touchConversation(tx: DatabaseTransaction, conversationId: string
     .where(eq(conversationsTable.id, conversationId));
 }
 
-export async function syncConversationMessages(conversationId: string, messages: readonly UIMessage[]) {
+export async function syncConversationMessages(conversationId: string, messages: readonly AppUIMessage[]) {
   await db.transaction(async (tx) => {
     const messageIds = messages.map((message) => message.id);
 
@@ -67,7 +67,7 @@ export async function syncConversationMessages(conversationId: string, messages:
   });
 }
 
-export async function upsertConversationMessage(conversationId: string, message: UIMessage) {
+export async function upsertConversationMessage(conversationId: string, message: AppUIMessage) {
   await db.transaction(async (tx) => {
     const values = toStoredMessageValues(conversationId, message);
 
@@ -102,6 +102,6 @@ export async function listConversationMessages(conversationId: string): Promise<
   }));
 }
 
-export async function createInitialUserMessage(conversationId: string, message: UIMessage) {
+export async function createInitialUserMessage(conversationId: string, message: AppUIMessage) {
   await upsertConversationMessage(conversationId, message);
 }

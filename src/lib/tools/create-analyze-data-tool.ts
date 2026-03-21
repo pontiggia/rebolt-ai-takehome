@@ -3,8 +3,9 @@ import 'server-only';
 import { generateText, Output, tool } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod/v4';
+import { getActivityReporter, getToolInternalActivityId } from '@/lib/agent-activity';
 import { loadDatasetEnvelope } from '@/services/datasets';
-import { AI_MODELS } from '@/types/ai';
+import { AI_MODELS, type AnalyzeDataToolInput } from '@/types/ai';
 import type { FileDataContext } from '@/types/file';
 import { pickSelectedColumns } from '@/lib/tools/dataset-selection';
 
@@ -20,7 +21,10 @@ export function createAnalyzeDataTool(fileData: FileDataContext | null) {
         ),
       columns: z.array(z.string()).describe('Which columns to focus the analysis on'),
     }),
-    execute: async ({ task, columns }) => {
+    execute: async ({ task, columns }: AnalyzeDataToolInput, { toolCallId, experimental_context }) => {
+      const reportActivity = getActivityReporter(experimental_context);
+      const internalActivityId = getToolInternalActivityId(toolCallId);
+
       if (!fileData) {
         return {
           summary: 'No file data is available yet.',
@@ -30,12 +34,38 @@ export function createAnalyzeDataTool(fileData: FileDataContext | null) {
         };
       }
 
+      reportActivity?.({
+        id: internalActivityId,
+        transient: true,
+        activity: {
+          kind: 'tool-internal',
+          status: 'running',
+          label: 'Loading dataset',
+          detail: task,
+          toolName: 'analyzeData',
+          toolCallId,
+        },
+      });
+
       const envelope = await loadDatasetEnvelope(fileData.fileId, fileData.datasetUrl);
       const selectedColumns = pickSelectedColumns(fileData, columns);
       const selectedProfiles = envelope.profile.columns.filter((profile) => selectedColumns.includes(profile.name));
       const sampleValues = envelope.rows
         .slice(0, 10)
         .map((row) => Object.fromEntries(selectedColumns.map((column) => [column, row[column]])));
+
+      reportActivity?.({
+        id: internalActivityId,
+        transient: true,
+        activity: {
+          kind: 'tool-internal',
+          status: 'running',
+          label: 'Running analysis model',
+          detail: selectedColumns.join(', '),
+          toolName: 'analyzeData',
+          toolCallId,
+        },
+      });
 
       const result = await generateText({
         model: openai(AI_MODELS.title),
@@ -66,7 +96,20 @@ ${JSON.stringify(sampleValues, null, 2)}
 Provide:
 1. A concise summary of what the full dataset contains
 2. 2-4 specific insights grounded in the exact stats above
-3. A recommended approach for visualizing or representing this data`,
+        3. A recommended approach for visualizing or representing this data`,
+      });
+
+      reportActivity?.({
+        id: internalActivityId,
+        transient: true,
+        activity: {
+          kind: 'tool-internal',
+          status: 'completed',
+          label: 'Analysis ready',
+          detail: result.output?.summary ?? 'Analysis complete',
+          toolName: 'analyzeData',
+          toolCallId,
+        },
       });
 
       return {

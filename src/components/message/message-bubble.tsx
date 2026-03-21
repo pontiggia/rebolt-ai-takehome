@@ -1,99 +1,38 @@
 'use client';
 
-import Image from 'next/image';
-import { MarkdownRenderer } from '@/components/message/markdown-renderer';
-import { FileUploadBadge } from '@/components/chat/file-upload-badge';
-import { ToolInvocationPart } from '@/components/message/tool-invocation-part';
+import { AssistantMessageBubble } from '@/components/message/assistant-message-bubble';
+import { UserMessageBubble } from '@/components/message/user-message-bubble';
 import type { FileMetadataResponse } from '@/types/api';
-import type { UIMessage } from 'ai';
+import type { AgentActivityDataChunk, AppUIMessage } from '@/types/ai';
 
 interface MessageBubbleProps {
-  readonly message: UIMessage;
+  readonly message: AppUIMessage;
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
   readonly files?: readonly FileMetadataResponse[];
   readonly onArtifactClick?: () => void;
+  readonly liveActivitiesByToolCallId?: ReadonlyMap<string, AgentActivityDataChunk>;
 }
 
-export function MessageBubble({ message, userInitials, userAvatarUrl, files, onArtifactClick }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
-  const hasFiles = files && files.length > 0;
-
-  if (isUser) {
+export function MessageBubble({
+  message,
+  userInitials,
+  userAvatarUrl,
+  files,
+  onArtifactClick,
+  liveActivitiesByToolCallId,
+}: MessageBubbleProps) {
+  if (message.role === 'user') {
     return (
-      <div className="!mt-10 flex items-start justify-end gap-3">
-        <div className="flex flex-col items-end gap-2">
-          {hasFiles && (
-            <div className="flex flex-wrap justify-end gap-2">
-              {files.map((file) => (
-                <FileUploadBadge key={file.id} fileName={file.fileName} rowCount={file.rowCount} />
-              ))}
-            </div>
-          )}
-          <div className="rounded-2xl rounded-tr-sm bg-primary/[0.07] px-4 py-3 font-sans text-sm leading-relaxed text-[#1e3a5f]">
-            {message.parts.map((part, i) => {
-              if (part.type === 'text') {
-                return <span key={i}>{part.text}</span>;
-              }
-              return null;
-            })}
-          </div>
-        </div>
-        {userAvatarUrl ? (
-          <Image
-            src={userAvatarUrl}
-            alt=""
-            width={28}
-            height={28}
-            className="h-7 w-7 shrink-0 rounded-full"
-            style={{ width: 28, height: 28 }}
-            unoptimized
-          />
-        ) : (
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
-            {userInitials}
-          </div>
-        )}
-      </div>
+      <UserMessageBubble message={message} userInitials={userInitials} userAvatarUrl={userAvatarUrl} files={files} />
     );
   }
 
-  const artifactParts = message.parts.filter((part) => part.type === 'tool-generateArtifact');
-
   return (
-    <div className="mt-2">
-      <div>
-        {message.parts.map((part, i) => {
-          if (part.type === 'text') {
-            return <MarkdownRenderer key={i} content={part.text} />;
-          }
-          if (part.type === 'tool-generateArtifact') {
-            return (
-              <ToolInvocationPart
-                key={i}
-                toolName="generateArtifact"
-                part={part}
-                onArtifactClick={onArtifactClick}
-                mode="instructions"
-              />
-            );
-          }
-          if (part.type.startsWith('tool-')) {
-            const toolName = part.type.slice(5);
-            return <ToolInvocationPart key={i} toolName={toolName} part={part} onArtifactClick={onArtifactClick} />;
-          }
-          return null;
-        })}
-        {artifactParts.map((part, i) => (
-          <ToolInvocationPart
-            key={`artifact-${i}`}
-            toolName="generateArtifact"
-            part={part}
-            onArtifactClick={onArtifactClick}
-            mode="card"
-          />
-        ))}
-      </div>
-    </div>
+    <AssistantMessageBubble
+      message={message}
+      onArtifactClick={onArtifactClick}
+      liveActivitiesByToolCallId={liveActivitiesByToolCallId}
+    />
   );
 }

@@ -1,21 +1,24 @@
 'use client';
 
-import type { UIMessage } from 'ai';
 import { MessageBubble } from '@/components/message/message-bubble';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { isAgentActivityDataPart, isAppToolInvocation, isRunningToolInvocation } from '@/lib/agent-activity';
 import type { FileMetadataResponse } from '@/types/api';
+import type { AgentActivityDataChunk, AppUIMessage } from '@/types/ai';
 
 interface ChatViewMessagesProps {
-  readonly messages: readonly UIMessage[];
+  readonly messages: readonly AppUIMessage[];
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
   readonly sentFilesMap: ReadonlyMap<number, readonly FileMetadataResponse[]>;
   readonly isLoading: boolean;
   readonly error: Error | undefined;
+  readonly liveActivitiesByToolCallId: ReadonlyMap<string, AgentActivityDataChunk>;
+  readonly liveActivityCount: number;
   readonly onArtifactClick: () => void;
 }
 
-function shouldShowThinking(messages: readonly UIMessage[], isLoading: boolean): boolean {
+function shouldShowThinking(messages: readonly AppUIMessage[], isLoading: boolean): boolean {
   if (!isLoading || messages.length === 0) {
     return false;
   }
@@ -25,9 +28,25 @@ function shouldShowThinking(messages: readonly UIMessage[], isLoading: boolean):
     return true;
   }
 
-  return !lastMessage.parts.some(
-    (part) => (part.type === 'text' && part.text.length > 0) || part.type.startsWith('tool-'),
-  );
+  return !lastMessage.parts.some((part) => {
+    if (part.type === 'text') {
+      return part.text.length > 0;
+    }
+
+    if (part.type === 'reasoning') {
+      return part.text.trim().length > 0;
+    }
+
+    if (isAgentActivityDataPart(part)) {
+      return part.data.status === 'running' && (part.data.kind === 'tool' || part.data.kind === 'step');
+    }
+
+    if (isAppToolInvocation(part)) {
+      return !isRunningToolInvocation(part);
+    }
+
+    return false;
+  });
 }
 
 export function ChatViewMessages({
@@ -37,24 +56,34 @@ export function ChatViewMessages({
   sentFilesMap,
   isLoading,
   error,
+  liveActivitiesByToolCallId,
+  liveActivityCount,
   onArtifactClick,
 }: ChatViewMessagesProps) {
-  const { containerRef, endRef } = useAutoScroll(messages);
+  const activityScrollSignal =
+    messages.reduce((total, message) => total + (message.role === 'assistant' ? message.parts.length : 0), 0) +
+    liveActivityCount;
+  const { containerRef, endRef } = useAutoScroll(messages, activityScrollSignal);
 
   const showThinking = shouldShowThinking(messages, isLoading);
+  const lastAssistantMessageId = [...messages].reverse().find((message) => message.role === 'assistant')?.id ?? null;
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
         {messages.map((message, index) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            userInitials={userInitials}
-            userAvatarUrl={userAvatarUrl}
-            files={sentFilesMap.get(index)}
-            onArtifactClick={onArtifactClick}
-          />
+          <div key={message.id} className="[content-visibility:auto] [contain-intrinsic-size:0_180px]">
+            <MessageBubble
+              message={message}
+              userInitials={userInitials}
+              userAvatarUrl={userAvatarUrl}
+              files={sentFilesMap.get(index)}
+              onArtifactClick={onArtifactClick}
+              liveActivitiesByToolCallId={
+                message.id === lastAssistantMessageId ? liveActivitiesByToolCallId : undefined
+              }
+            />
+          </div>
         ))}
         {showThinking && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

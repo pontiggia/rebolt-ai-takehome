@@ -1,6 +1,6 @@
-import type { UIMessage } from 'ai';
+import type { AppUIMessage } from '@/types/ai';
 
-export type PersistedChatMessage = UIMessage;
+export type PersistedChatMessage = AppUIMessage;
 export type PersistedChatParts = PersistedChatMessage['parts'];
 
 export const MAX_ARTIFACT_AUTO_RETRIES = 3;
