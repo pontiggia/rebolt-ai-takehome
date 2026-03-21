@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import type { ReactNode, ComponentPropsWithoutRef } from 'react';
 import { sanitizeSchema, remarkGfmOptions } from '@/lib/markdown/config';
-import { CodeBlock, InlineCode } from '@/components/code-block';
+import { CodeBlock, InlineCode } from '@/components/message/code-block';
 
 interface MarkdownRendererProps {
   readonly content: string;

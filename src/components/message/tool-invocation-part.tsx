@@ -1,9 +1,9 @@
 'use client';
 
 import type { AnalysisToolOutput, ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
-import { ToolLoadingIndicator } from '@/components/tool-loading-indicator';
-import { CollapsibleSection } from '@/components/collapsible-section';
-import { ArtifactCard } from '@/components/artifact-card';
+import { ToolLoadingIndicator } from '@/components/message/tool-loading-indicator';
+import { CollapsibleSection } from '@/components/message/collapsible-section';
+import { ArtifactCard } from '@/components/artifact/artifact-card';
 
 function ToolErrorSection({ label, error, description }: { label: string; error: string; description?: string }) {
   return (

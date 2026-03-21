@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/lib/auth';
-import { ChatView } from '@/components/chat-view';
+import { ChatView } from '@/components/chat/chat-view';
 
 export default async function ChatPage() {
   const user = await getCurrentUser();

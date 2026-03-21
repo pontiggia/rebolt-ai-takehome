@@ -2,7 +2,7 @@
 
 import type { FileUploadBadgeProps } from '@/types/components';
 
-export function FileUploadBadge({ fileName, rowCount }: FileUploadBadgeProps) {
+export function FileUploadBadge({ fileName }: FileUploadBadgeProps) {
   return (
     <div className="inline-flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-1.5">
       <svg

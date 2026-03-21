@@ -1,5 +1,7 @@
 import type { ActiveArtifact, ArtifactRuntimeEvent, ArtifactRuntimeState } from '@/types/chat';
 
+export type ArtifactPanelView = 'preview' | 'code';
+
 export interface ArtifactPanelProps {
   readonly artifact: ActiveArtifact;
   readonly runtimeState: ArtifactRuntimeState;
@@ -7,6 +9,13 @@ export interface ArtifactPanelProps {
   readonly onManualRetry: () => void;
   readonly onRuntimeEvent: (event: ArtifactRuntimeEvent) => void;
   readonly onClose: () => void;
+}
+
+export interface ArtifactSandpackProps {
+  readonly artifactKey: string;
+  readonly files: Readonly<Record<string, string>>;
+  readonly view: ArtifactPanelView;
+  readonly onRuntimeEvent: (event: ArtifactRuntimeEvent) => void;
 }
 
 export interface FileUploadBadgeProps {

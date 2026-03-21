@@ -1,44 +1,31 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChatOnFinishCallback, ChatStatus, UIMessage } from 'ai';
-import type { ArtifactToolInput, ArtifactToolOutput } from '@/types/ai';
+import { useCallback, useRef, useState } from 'react';
+import type { ChatStatus, UIMessage } from 'ai';
 import type {
-  ActiveArtifact,
   ArtifactRetryPayload,
   ArtifactRetrySource,
   ArtifactRuntimeEvent,
   ArtifactRuntimeState,
 } from '@/types/chat';
-import { ARTIFACT_DATASET_ERROR_MARKER, MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
-
-const IDLE_RUNTIME_STATE: ArtifactRuntimeState = {
-  status: 'idle',
-  retryCount: 0,
-  lastError: null,
-  source: null,
-};
-
-type RetryRequestResult = 'started' | 'blocked' | 'exhausted';
-
-type GenerateArtifactPart = {
-  type: 'tool-generateArtifact';
-  toolCallId: string;
-  state: string;
-  input?: unknown;
-  output?: unknown;
-  errorText?: string;
-};
-
-interface GenerateArtifactToolError {
-  readonly signature: string;
-  readonly payload: Omit<ArtifactRetryPayload, 'attempt' | 'manual'>;
-}
-
-interface PendingRetry {
-  readonly payload: ArtifactRetryPayload;
-  readonly baselineArtifactKey: string | null;
-}
+import { MAX_ARTIFACT_AUTO_RETRIES } from '@/types/chat';
+import { useArtifactActiveState } from '@/hooks/use-artifact-active-state';
+import {
+  buildManualRetryPayload,
+  buildRuntimeRetryPayload,
+  type ArtifactRetryRequestPayload,
+  type ChatFinishEvent,
+  findLatestGenerateArtifactToolError,
+  findLatestSuccessfulArtifact,
+  IDLE_RUNTIME_STATE,
+  isDatasetAccessError,
+  normalizeErrorMessage,
+  type PendingRetry,
+  type RetryRequestResult,
+  stripDatasetAccessError,
+  toRuntimeSource,
+} from '@/hooks/use-artifact-helpers';
+import { useArtifactToolErrorRetry } from '@/hooks/use-artifact-tool-error-retry';
 
 interface UseArtifactOptions {
   readonly messages: UIMessage[];
@@ -48,160 +35,29 @@ interface UseArtifactOptions {
   readonly regenerate: (options?: { messageId?: string; body?: Record<string, unknown> }) => Promise<void>;
 }
 
-function normalizeErrorMessage(value: unknown, fallback: string): string {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : fallback;
-  }
-
-  if (value && typeof value === 'object') {
-    const errorLike = value as Partial<Record<'message' | 'title' | 'description', unknown>>;
-    for (const key of ['message', 'title', 'description'] as const) {
-      const candidate = errorLike[key];
-      if (typeof candidate === 'string' && candidate.trim().length > 0) {
-        return candidate.trim();
-      }
-    }
-  }
-
-  return fallback;
-}
-
-function isDatasetAccessError(error: string): boolean {
-  return error.startsWith(ARTIFACT_DATASET_ERROR_MARKER);
-}
-
-function stripDatasetAccessError(error: string): string {
-  return error.replace(ARTIFACT_DATASET_ERROR_MARKER, '').trim();
-}
-
-function getGenerateArtifactPart(part: UIMessage['parts'][number]): GenerateArtifactPart | null {
-  return part.type === 'tool-generateArtifact' ? (part as GenerateArtifactPart) : null;
-}
-
-function findLatestSuccessfulArtifact(messages: readonly UIMessage[]): ActiveArtifact | null {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const message = messages[messageIndex];
-    if (message.role !== 'assistant') {
-      continue;
-    }
-
-    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
-      const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-available' || !part.output) {
-        continue;
-      }
-
-      const output = part.output as ArtifactToolOutput;
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        key: `${message.id}:${part.toolCallId}`,
-        assistantMessageId: message.id,
-        toolCallId: part.toolCallId,
-        fileId: output.fileId ?? null,
-        title: output.title ?? input?.title ?? null,
-        description: input?.description ?? null,
-        files: output.files,
-      };
-    }
-  }
-
-  return null;
-}
-
-function findLatestGenerateArtifactToolError(
-  messages: readonly UIMessage[],
-  fallbackFileId: string | null,
-): GenerateArtifactToolError | null {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const message = messages[messageIndex];
-    if (message.role !== 'assistant') {
-      continue;
-    }
-
-    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
-      const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-error' || !part.errorText) {
-        continue;
-      }
-
-      const error = normalizeErrorMessage(part.errorText, 'Artifact generation failed.');
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        signature: `${message.id}:${part.toolCallId}:${error}`,
-        payload: {
-          assistantMessageId: message.id,
-          artifactToolCallId: part.toolCallId,
-          fileId: fallbackFileId,
-          artifactTitle: input?.title ?? null,
-          artifactDescription: input?.description ?? null,
-          files: null,
-          error,
-          source: 'tool-output-error',
-        },
-      };
-    }
-  }
-
-  return null;
-}
-
-function toRuntimeSource(event: Exclude<ArtifactRuntimeEvent, { type: 'ready' }>): ArtifactRetrySource {
-  if (event.type === 'timeout') {
-    return 'sandpack-timeout';
-  }
-
-  if (event.type === 'notification-error') {
-    return 'sandpack-notification';
-  }
-
-  return 'sandpack-runtime';
-}
-
-type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
-
 export function useArtifact({ messages, conversationId, latestFileId, chatStatus, regenerate }: UseArtifactOptions) {
   const latestSuccessfulArtifact = findLatestSuccessfulArtifact(messages);
   const latestToolError = findLatestGenerateArtifactToolError(messages, latestFileId);
 
-  const [activeArtifact, setActiveArtifact] = useState<ActiveArtifact | null>(() => latestSuccessfulArtifact);
   const [runtimeState, setRuntimeState] = useState<ArtifactRuntimeState>(IDLE_RUNTIME_STATE);
 
-  const activeArtifactRef = useRef(activeArtifact);
   const pendingRetryRef = useRef<PendingRetry | null>(null);
-  const lastRetryPayloadRef = useRef<ArtifactRetryPayload | null>(null);
+  const lastRetryPayloadRef = useRef<ArtifactRetryRequestPayload | null>(null);
   const lastToolErrorSignatureRef = useRef<string | null>(null);
   const lastRuntimeErrorSignatureRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    activeArtifactRef.current = activeArtifact;
-  }, [activeArtifact]);
-
-  useEffect(() => {
-    if (!latestSuccessfulArtifact || activeArtifactRef.current?.key === latestSuccessfulArtifact.key) {
-      return;
-    }
-
-    let cancelled = false;
+  const resetForNextArtifact = useCallback(() => {
     pendingRetryRef.current = null;
     lastRetryPayloadRef.current = null;
     lastToolErrorSignatureRef.current = null;
     lastRuntimeErrorSignatureRef.current = null;
-    activeArtifactRef.current = latestSuccessfulArtifact;
+    setRuntimeState(IDLE_RUNTIME_STATE);
+  }, []);
 
-    queueMicrotask(() => {
-      if (cancelled) {
-        return;
-      }
-
-      setActiveArtifact(latestSuccessfulArtifact);
-      setRuntimeState(IDLE_RUNTIME_STATE);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [latestSuccessfulArtifact]);
+  const { activeArtifact, activeArtifactRef } = useArtifactActiveState({
+    latestSuccessfulArtifact,
+    onArtifactReplace: resetForNextArtifact,
+  });
 
   const setFailureState = useCallback((error: string, source: ArtifactRetrySource) => {
     setRuntimeState((prev) => ({
@@ -226,7 +82,7 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
 
   const requestRetry = useCallback(
     (
-      payload: Omit<ArtifactRetryPayload, 'attempt' | 'manual'>,
+      payload: ArtifactRetryRequestPayload,
       options: { manual?: boolean; resetCount?: boolean } = {},
     ): RetryRequestResult => {
       if (!conversationId || chatStatus !== 'ready' || pendingRetryRef.current) {
@@ -256,7 +112,7 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
         payload: retryPayload,
         baselineArtifactKey: activeArtifactRef.current?.key ?? null,
       };
-      lastRetryPayloadRef.current = retryPayload;
+      lastRetryPayloadRef.current = payload;
 
       setRuntimeState({
         status: 'retrying',
@@ -277,7 +133,7 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
 
       return 'started';
     },
-    [chatStatus, conversationId, handleRequestError, regenerate, runtimeState.retryCount],
+    [activeArtifactRef, chatStatus, conversationId, handleRequestError, regenerate, runtimeState.retryCount],
   );
 
   const handleRequestFinish = useCallback(
@@ -308,27 +164,11 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
     [setFailureState],
   );
 
-  useEffect(() => {
-    if (!latestToolError || latestToolError.signature === lastToolErrorSignatureRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) {
-        return;
-      }
-
-      const retryResult = requestRetry(latestToolError.payload);
-      if (retryResult !== 'blocked') {
-        lastToolErrorSignatureRef.current = latestToolError.signature;
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [latestToolError, requestRetry]);
+  useArtifactToolErrorRetry({
+    latestToolError,
+    lastToolErrorSignatureRef,
+    requestRetry,
+  });
 
   const handleRuntimeEvent = useCallback(
     (event: ArtifactRuntimeEvent) => {
@@ -370,22 +210,13 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
         return;
       }
 
-      const retryResult = requestRetry({
-        assistantMessageId: artifact.assistantMessageId,
-        artifactToolCallId: artifact.toolCallId,
-        fileId: artifact.fileId,
-        artifactTitle: artifact.title,
-        artifactDescription: artifact.description,
-        files: artifact.files,
-        error,
-        source,
-      });
+      const retryResult = requestRetry(buildRuntimeRetryPayload(artifact, error, source));
 
       if (retryResult !== 'blocked') {
         lastRuntimeErrorSignatureRef.current = signature;
       }
     },
-    [requestRetry],
+    [activeArtifactRef, requestRetry],
   );
 
   const handleManualRetry = useCallback(() => {
@@ -394,31 +225,7 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
       return;
     }
 
-    const previousRetry = lastRetryPayloadRef.current;
-    const retryPayload =
-      previousRetry &&
-      previousRetry.assistantMessageId === artifact.assistantMessageId &&
-      previousRetry.artifactToolCallId === artifact.toolCallId
-        ? {
-            assistantMessageId: previousRetry.assistantMessageId,
-            artifactToolCallId: previousRetry.artifactToolCallId,
-            fileId: previousRetry.fileId,
-            artifactTitle: previousRetry.artifactTitle,
-            artifactDescription: previousRetry.artifactDescription,
-            files: previousRetry.files,
-            error: previousRetry.error,
-            source: previousRetry.source,
-          }
-        : {
-            assistantMessageId: artifact.assistantMessageId,
-            artifactToolCallId: artifact.toolCallId,
-            fileId: artifact.fileId,
-            artifactTitle: artifact.title,
-            artifactDescription: artifact.description,
-            files: artifact.files,
-            error: runtimeState.lastError ?? 'The artifact preview failed.',
-            source: runtimeState.source ?? 'sandpack-runtime',
-          };
+    const retryPayload = buildManualRetryPayload(artifact, lastRetryPayloadRef.current, runtimeState);
 
     lastRuntimeErrorSignatureRef.current = null;
     lastToolErrorSignatureRef.current = null;
@@ -427,7 +234,7 @@ export function useArtifact({ messages, conversationId, latestFileId, chatStatus
       manual: true,
       resetCount: true,
     });
-  }, [chatStatus, requestRetry, runtimeState.lastError, runtimeState.source]);
+  }, [activeArtifactRef, chatStatus, requestRetry, runtimeState]);
 
   const resetRuntimeState = useCallback(() => {
     lastRuntimeErrorSignatureRef.current = null;

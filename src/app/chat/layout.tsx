@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/auth';
 import { listConversations } from '@/services/conversations';
-import { Sidebar } from '@/components/sidebar';
+import { Sidebar } from '@/components/sidebar/sidebar';
 import type { ConversationSummary } from '@/types/api';
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {
