@@ -21,7 +21,7 @@ export function MessageBubble({ message, userInitials, userAvatarUrl, files, onA
 
   if (isUser) {
     return (
-      <div className="flex items-end justify-end gap-3">
+      <div className="!mt-10 flex items-start justify-end gap-3">
         <div className="flex flex-col items-end gap-2">
           {hasFiles && (
             <div className="flex flex-wrap justify-end gap-2">
@@ -30,7 +30,7 @@ export function MessageBubble({ message, userInitials, userAvatarUrl, files, onA
               ))}
             </div>
           )}
-          <div className="rounded-2xl bg-primary/10 px-4 py-3 text-sm leading-relaxed">
+          <div className="rounded-2xl rounded-tr-sm bg-primary/[0.07] px-4 py-3 font-sans text-sm leading-relaxed text-[#1e3a5f]">
             {message.parts.map((part, i) => {
               if (part.type === 'text') {
                 return <span key={i}>{part.text}</span>;
@@ -63,22 +63,36 @@ export function MessageBubble({ message, userInitials, userAvatarUrl, files, onA
   return (
     <div className="mt-2">
       <div>
-          {message.parts.map((part, i) => {
-            if (part.type === 'text') {
-              return <MarkdownRenderer key={i} content={part.text} />;
-            }
-            if (part.type === 'tool-generateArtifact') {
-              return <ToolInvocationPart key={i} toolName="generateArtifact" part={part} onArtifactClick={onArtifactClick} mode="instructions" />;
-            }
-            if (part.type.startsWith('tool-')) {
-              const toolName = part.type.slice(5);
-              return <ToolInvocationPart key={i} toolName={toolName} part={part} onArtifactClick={onArtifactClick} />;
-            }
-            return null;
-          })}
-          {artifactParts.map((part, i) => (
-            <ToolInvocationPart key={`artifact-${i}`} toolName="generateArtifact" part={part} onArtifactClick={onArtifactClick} mode="card" />
-          ))}
+        {message.parts.map((part, i) => {
+          if (part.type === 'text') {
+            return <MarkdownRenderer key={i} content={part.text} />;
+          }
+          if (part.type === 'tool-generateArtifact') {
+            return (
+              <ToolInvocationPart
+                key={i}
+                toolName="generateArtifact"
+                part={part}
+                onArtifactClick={onArtifactClick}
+                mode="instructions"
+              />
+            );
+          }
+          if (part.type.startsWith('tool-')) {
+            const toolName = part.type.slice(5);
+            return <ToolInvocationPart key={i} toolName={toolName} part={part} onArtifactClick={onArtifactClick} />;
+          }
+          return null;
+        })}
+        {artifactParts.map((part, i) => (
+          <ToolInvocationPart
+            key={`artifact-${i}`}
+            toolName="generateArtifact"
+            part={part}
+            onArtifactClick={onArtifactClick}
+            mode="card"
+          />
+        ))}
       </div>
     </div>
   );

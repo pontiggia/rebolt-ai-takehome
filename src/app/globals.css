@@ -84,3 +84,15 @@
 .artifact-sandpack .sp-stack {
   height: 100%;
 }
+
+/* Tighten gap between file explorer and code editor */
+.artifact-sandpack [class*='sp-file-explorer'] + [class*='sp-code-editor'],
+.artifact-sandpack [class*='sp-file-explorer'] ~ [class*='sp-code-editor'] {
+  padding-left: 0 !important;
+}
+.artifact-sandpack .cm-gutters {
+  padding-left: 2px !important;
+}
+.artifact-sandpack [class*='sp-file-explorer-list'] {
+  padding: 8px !important;
+}

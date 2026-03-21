@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import type { UIMessage } from 'ai';
 import { MessageBubble } from '@/components/message/message-bubble';
+import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import type { FileMetadataResponse } from '@/types/api';
 
 interface ChatViewMessagesProps {
@@ -39,16 +39,12 @@ export function ChatViewMessages({
   error,
   onArtifactClick,
 }: ChatViewMessagesProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const { containerRef, endRef } = useAutoScroll(messages);
 
   const showThinking = shouldShowThinking(messages, isLoading);
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
         {messages.map((message, index) => (
           <MessageBubble
@@ -66,7 +62,7 @@ export function ChatViewMessages({
           </div>
         )}
         {error && <p className="text-sm text-destructive">{error.message}</p>}
-        <div ref={messagesEndRef} />
+        <div ref={endRef} />
       </div>
     </div>
   );

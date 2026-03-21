@@ -8,7 +8,7 @@ interface ArtifactSandpackCodePaneProps {
 export function ArtifactSandpackCodePane({ view }: ArtifactSandpackCodePaneProps) {
   return (
     <div style={{ display: view === 'code' ? 'flex' : 'none', height: '100%' }}>
-      <SandpackFileExplorer autoHiddenFiles style={{ height: '100%', minWidth: 180, maxWidth: 220 }} />
+      <SandpackFileExplorer autoHiddenFiles style={{ height: '100%', minWidth: 120, maxWidth: 160 }} />
       <SandpackCodeEditor showTabs={false} showLineNumbers readOnly style={{ height: '100%', flex: 1 }} />
     </div>
   );
