@@ -8,8 +8,32 @@ export interface GenerateArtifactToolError {
   readonly payload: ArtifactRetryRequestPayload;
 }
 
+export function getArtifactKey(assistantMessageId: string, toolCallId: string): string {
+  return `${assistantMessageId}:${toolCallId}`;
+}
+
 function getGenerateArtifactPart(part: AppUIMessage['parts'][number]): GenerateArtifactToolInvocation | null {
   return part.type === 'tool-generateArtifact' ? part : null;
+}
+
+function toActiveArtifact(messageId: string, part: GenerateArtifactToolInvocation): ActiveArtifact | null {
+  if (part.state !== 'output-available' || !part.output) {
+    return null;
+  }
+
+  const output = part.output as ArtifactToolOutput;
+  const input = part.input as ArtifactToolInput | undefined;
+
+  return {
+    key: getArtifactKey(messageId, part.toolCallId),
+    assistantMessageId: messageId,
+    toolCallId: part.toolCallId,
+    fileId: output.fileId ?? null,
+    datasetUrl: output.datasetUrl ?? null,
+    title: output.title ?? input?.title ?? null,
+    description: input?.description ?? null,
+    files: output.files,
+  };
 }
 
 export function findLatestSuccessfulArtifact(messages: readonly AppUIMessage[]): ActiveArtifact | null {
@@ -21,26 +45,38 @@ export function findLatestSuccessfulArtifact(messages: readonly AppUIMessage[]):
 
     for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
       const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-available' || !part.output) {
+      if (!part) {
         continue;
       }
 
-      const output = part.output as ArtifactToolOutput;
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        key: `${message.id}:${part.toolCallId}`,
-        assistantMessageId: message.id,
-        toolCallId: part.toolCallId,
-        fileId: output.fileId ?? null,
-        datasetUrl: output.datasetUrl ?? null,
-        title: output.title ?? input?.title ?? null,
-        description: input?.description ?? null,
-        files: output.files,
-      };
+      const artifact = toActiveArtifact(message.id, part);
+      if (artifact) {
+        return artifact;
+      }
     }
   }
 
   return null;
+}
+
+export function listSuccessfulArtifactKeys(messages: readonly AppUIMessage[]): string[] {
+  const keys: string[] = [];
+
+  for (const message of messages) {
+    if (message.role !== 'assistant') {
+      continue;
+    }
+
+    for (const part of message.parts) {
+      const artifactPart = getGenerateArtifactPart(part);
+      const artifact = artifactPart ? toActiveArtifact(message.id, artifactPart) : null;
+      if (artifact) {
+        keys.push(artifact.key);
+      }
+    }
+  }
+
+  return keys;
 }
 
 export function findLatestGenerateArtifactToolError(

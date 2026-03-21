@@ -15,7 +15,7 @@ export const ARTIFACT_RETRY_SOURCES = [
 ] as const;
 
 export type ArtifactRetrySource = (typeof ARTIFACT_RETRY_SOURCES)[number];
-export type ArtifactRuntimeStatus = 'idle' | 'retrying' | 'failed' | 'exhausted';
+export type ArtifactRuntimeStatus = 'idle' | 'validating' | 'retrying' | 'failed' | 'exhausted';
 
 export interface ArtifactRetryPayload {
   readonly assistantMessageId: string;

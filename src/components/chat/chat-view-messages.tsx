@@ -3,19 +3,20 @@
 import { MessageBubble } from '@/components/message/message-bubble';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { isAgentActivityDataPart, isAppToolInvocation, isRunningToolInvocation } from '@/lib/agent-activity';
-import type { FileMetadataResponse } from '@/types/api';
-import type { AgentActivityDataChunk, AppUIMessage } from '@/types/ai';
+import type { AgentActivityDataChunk, AppUIMessage, UploadedFileData } from '@/types/ai';
 
 interface ChatViewMessagesProps {
   readonly messages: readonly AppUIMessage[];
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
-  readonly sentFilesMap: ReadonlyMap<number, readonly FileMetadataResponse[]>;
+  readonly activeArtifactKey: string | null;
+  readonly activeArtifactStatusLabel: string | null;
   readonly isLoading: boolean;
   readonly error: Error | undefined;
   readonly liveActivitiesByToolCallId: ReadonlyMap<string, AgentActivityDataChunk>;
   readonly liveActivityCount: number;
   readonly onArtifactClick: () => void;
+  readonly onOpenFilePreview: (file: UploadedFileData, trigger: HTMLButtonElement) => void;
 }
 
 function shouldShowThinking(messages: readonly AppUIMessage[], isLoading: boolean): boolean {
@@ -53,12 +54,14 @@ export function ChatViewMessages({
   messages,
   userInitials,
   userAvatarUrl,
-  sentFilesMap,
+  activeArtifactKey,
+  activeArtifactStatusLabel,
   isLoading,
   error,
   liveActivitiesByToolCallId,
   liveActivityCount,
   onArtifactClick,
+  onOpenFilePreview,
 }: ChatViewMessagesProps) {
   const activityScrollSignal =
     messages.reduce((total, message) => total + (message.role === 'assistant' ? message.parts.length : 0), 0) +
@@ -71,14 +74,16 @@ export function ChatViewMessages({
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-        {messages.map((message, index) => (
+        {messages.map((message) => (
           <div key={message.id} className="[content-visibility:auto] [contain-intrinsic-size:0_180px]">
             <MessageBubble
               message={message}
               userInitials={userInitials}
               userAvatarUrl={userAvatarUrl}
-              files={sentFilesMap.get(index)}
+              activeArtifactKey={activeArtifactKey}
+              activeArtifactStatusLabel={activeArtifactStatusLabel}
               onArtifactClick={onArtifactClick}
+              onOpenFilePreview={onOpenFilePreview}
               liveActivitiesByToolCallId={
                 message.id === lastAssistantMessageId ? liveActivitiesByToolCallId : undefined
               }

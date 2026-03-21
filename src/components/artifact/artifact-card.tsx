@@ -1,4 +1,12 @@
-export function ArtifactCard({ title, onClick }: { readonly title: string; readonly onClick?: () => void }) {
+export function ArtifactCard({
+  title,
+  statusLabel,
+  onClick,
+}: {
+  readonly title: string;
+  readonly statusLabel?: string;
+  readonly onClick?: () => void;
+}) {
   return (
     <div
       onClick={onClick}
@@ -25,7 +33,7 @@ export function ArtifactCard({ title, onClick }: { readonly title: string; reado
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">Interactive artifact</p>
+        <p className="text-xs text-muted-foreground">{statusLabel ?? 'Interactive artifact'}</p>
       </div>
       <svg
         width="16"

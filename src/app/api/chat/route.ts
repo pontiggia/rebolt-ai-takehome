@@ -1,5 +1,6 @@
 import { createUIMessageStreamResponse, safeValidateUIMessages } from 'ai';
 import type { Tool } from 'ai';
+import { z } from 'zod/v4';
 import { invalidRequestError, parseJsonBody, withAuthHandler } from '@/lib/api';
 import { getConversation, getConversationFileData, getFileDataById } from '@/services/conversations';
 import { errorResponse } from '@/types/errors';
@@ -9,6 +10,13 @@ import { createChatUIStream } from '@/lib/chat/create-chat-ui-stream';
 import { createChatTools } from '@/lib/tools';
 import { syncConversationMessages } from '@/services/messages';
 import type { AppUIMessage } from '@/types/ai';
+
+const uploadedFileDataSchema = z.object({
+  fileId: z.string().uuid(),
+  fileName: z.string().min(1),
+  fileType: z.string().min(1),
+  rowCount: z.number().int().nonnegative(),
+});
 
 export const POST = withAuthHandler(async (req, { user }) => {
   const parsedBody = await parseJsonBody(req, chatBodySchema);
@@ -36,6 +44,9 @@ export const POST = withAuthHandler(async (req, { user }) => {
   const tools = createChatTools(fileData);
   const validatedMessages = await safeValidateUIMessages<AppUIMessage>({
     messages: rawMessages,
+    dataSchemas: {
+      'uploaded-file': uploadedFileDataSchema,
+    },
     tools: tools as Record<string, Tool<unknown, unknown>>,
   });
 

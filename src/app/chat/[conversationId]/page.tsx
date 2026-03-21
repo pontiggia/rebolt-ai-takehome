@@ -21,7 +21,6 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
       key={conversationId}
       conversationId={conversationId}
       initialMessages={conversationDetail.value.messages}
-      initialFiles={conversationDetail.value.files}
       userInitials={userInitials}
       userAvatarUrl={user.profilePictureUrl ?? null}
     />

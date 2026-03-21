@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { listSuccessfulArtifactKeys } from '@/lib/artifact/artifact-message-selectors';
+import { toUploadedFileData, getUploadedFileRefs } from '@/lib/chat/user-message-parts';
 import { useAppChat } from '@/hooks/use-app-chat';
 import { useArtifactRequestRelay } from '@/hooks/use-artifact-request-relay';
 import { useConversation } from '@/hooks/use-conversation';
 import { useFileUpload } from '@/hooks/use-file-upload';
-import { useSentFiles } from '@/hooks/use-sent-files';
+import { useFilePreview } from '@/hooks/use-file-preview';
 import { useAutoReply } from '@/hooks/use-auto-reply';
 import { useArtifact } from '@/hooks/use-artifact';
 import { useArtifactPanel } from '@/hooks/use-artifact-panel';
@@ -14,14 +17,23 @@ import { ChatViewArtifactPane } from '@/components/chat/chat-view-artifact-pane'
 import { ChatViewConversationPane } from '@/components/chat/chat-view-conversation-pane';
 import { ChatViewEmptyState } from '@/components/chat/chat-view-empty-state';
 import { ComposerInput } from '@/components/chat/composer-input';
-import type { FileMetadataResponse, MessageResponse } from '@/types/api';
+import { FilePreviewDialog } from '@/components/chat/file-preview-dialog';
+import type { MessageResponse } from '@/types/api';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
+
+const ArtifactBackgroundValidator = dynamic(
+  () => import('@/components/artifact/artifact-background-validator').then((m) => m.ArtifactBackgroundValidator),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
 
 interface ChatViewProps {
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
   readonly conversationId?: string;
   readonly initialMessages?: readonly MessageResponse[];
-  readonly initialFiles?: readonly FileMetadataResponse[];
 }
 
 export function ChatView({
@@ -29,9 +41,21 @@ export function ChatView({
   userAvatarUrl,
   conversationId: propsConversationId,
   initialMessages = [],
-  initialFiles = [],
 }: ChatViewProps) {
   const conversation = useConversation({ propsConversationId, initialMessages });
+  const historicalArtifactKeys = useMemo(
+    () =>
+      new Set(
+        listSuccessfulArtifactKeys(
+          initialMessages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            parts: message.parts as AppUIMessage['parts'],
+          })),
+        ),
+      ),
+    [initialMessages],
+  );
   const {
     handleData: handleAgentActivityData,
     syncForChatState,
@@ -59,29 +83,29 @@ export function ChatView({
     onFinish: relayArtifactFinish,
   });
 
-  const hasExistingFiles = initialMessages.length > 0 && initialFiles.length > 0;
-  const [initialFilesSent, setInitialFilesSent] = useState(hasExistingFiles);
-
   const fileUpload = useFileUpload({
     conversationId: conversation.fileConversationId,
     onConversationNeeded: conversation.onConversationNeeded,
-    initialFiles: hasExistingFiles && !initialFilesSent ? initialFiles : undefined,
   });
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const previewTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const { preview, isLoading: isPreviewLoading, error: previewError, loadPreview, resetPreview } = useFilePreview();
 
   const latestFileId =
     fileUpload.pendingFiles.length > 0 ? fileUpload.pendingFiles[fileUpload.pendingFiles.length - 1].id : null;
 
-  const { sentFilesMap, trackFiles } = useSentFiles(messages.length);
   const {
     activeArtifact,
+    activeArtifactStatusLabel,
     runtimeState,
+    shouldValidateActiveArtifact,
     handleManualRetry,
     handleRuntimeEvent,
     handleRequestError,
     handleRequestFinish,
-    resetRuntimeState,
   } = useArtifact({
     messages,
+    historicalArtifactKeys,
     conversationId: conversation.chatConversationId,
     latestFileId,
     chatStatus: status,
@@ -116,30 +140,54 @@ export function ChatView({
     }
   }, [conversation.isEmptyState, setInput]);
 
+  const selectedFile =
+    selectedFileId === null
+      ? null
+      : (messages
+          .flatMap((message) => getUploadedFileRefs(message.parts))
+          .find((file) => file.fileId === selectedFileId) ?? null);
+
   const handleSend = useCallback(() => {
-    const filesToSend = fileUpload.pendingFiles.length > 0 ? [...fileUpload.pendingFiles] : null;
+    const uploadedFiles = fileUpload.pendingFiles.map(toUploadedFileData);
+    const hasUploadedFiles = uploadedFiles.length > 0;
 
     if (conversation.isEmptyState) {
-      conversation.createFirstMessage(input.trim(), filesToSend, () => {
-        trackFiles(0, filesToSend!);
-        setInitialFilesSent(true);
+      conversation.createFirstMessage(input.trim(), hasUploadedFiles ? uploadedFiles : null, () => {
         fileUpload.clearFiles();
       });
       return;
     }
 
-    if (filesToSend) {
-      trackFiles(messages.length, filesToSend);
-      setInitialFilesSent(true);
+    if (hasUploadedFiles) {
       fileUpload.clearFiles();
     }
-    rawHandleSend();
-  }, [conversation, input, fileUpload, messages.length, rawHandleSend, trackFiles]);
+    rawHandleSend(uploadedFiles);
+  }, [conversation, fileUpload, input, rawHandleSend]);
+
+  const handleOpenFilePreview = useCallback(
+    (file: UploadedFileData, trigger: HTMLButtonElement) => {
+      previewTriggerRef.current = trigger;
+      setSelectedFileId(file.fileId);
+      void loadPreview(file.fileId);
+    },
+    [loadPreview],
+  );
+
+  const handlePreviewOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) {
+        return;
+      }
+
+      setSelectedFileId(null);
+      resetPreview();
+    },
+    [resetPreview],
+  );
 
   const handleCloseArtifactPanel = useCallback(() => {
-    resetRuntimeState();
     setIsOpen(false);
-  }, [resetRuntimeState, setIsOpen]);
+  }, [setIsOpen]);
 
   const handleOpenArtifactPanel = useCallback(() => {
     setIsOpen(true);
@@ -171,14 +219,23 @@ export function ChatView({
         messages={messages}
         userInitials={userInitials}
         userAvatarUrl={userAvatarUrl}
-        sentFilesMap={sentFilesMap}
+        activeArtifactKey={activeArtifact?.key ?? null}
+        activeArtifactStatusLabel={activeArtifactStatusLabel}
         isLoading={isLoading}
         error={error}
         liveActivitiesByToolCallId={liveActivitiesByToolCallId}
         liveActivityCount={liveActivityCount}
         composer={composerInput}
         onArtifactClick={handleOpenArtifactPanel}
+        onOpenFilePreview={handleOpenFilePreview}
       />
+      {activeArtifact && !isOpen && shouldValidateActiveArtifact ? (
+        <ArtifactBackgroundValidator
+          artifactKey={activeArtifact.key}
+          files={activeArtifact.files}
+          onRuntimeEvent={handleRuntimeEvent}
+        />
+      ) : null}
       <ChatViewArtifactPane
         artifact={activeArtifact}
         isOpen={isOpen}
@@ -192,6 +249,15 @@ export function ChatView({
         onResizeStart={handleResizeStart}
         onResizeMove={handleResizeMove}
         onResizeEnd={handleResizeEnd}
+      />
+      <FilePreviewDialog
+        open={selectedFileId !== null}
+        fileName={selectedFile?.fileName ?? null}
+        preview={preview}
+        isLoading={isPreviewLoading}
+        error={previewError}
+        triggerRef={previewTriggerRef}
+        onOpenChange={handlePreviewOpenChange}
       />
     </div>
   );

@@ -1,27 +1,28 @@
 'use client';
 
 import Image from 'next/image';
-import { FileUploadBadge } from '@/components/chat/file-upload-badge';
-import type { FileMetadataResponse } from '@/types/api';
-import type { AppUIMessage } from '@/types/ai';
+import { MessageFileChip } from '@/components/chat/message-file-chip';
+import { getUploadedFileRefs } from '@/lib/chat/user-message-parts';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
 
 interface UserMessageBubbleProps {
   readonly message: AppUIMessage;
   readonly userInitials: string;
   readonly userAvatarUrl: string | null;
-  readonly files?: readonly FileMetadataResponse[];
+  readonly onOpenFilePreview?: (file: UploadedFileData, trigger: HTMLButtonElement) => void;
 }
 
-export function UserMessageBubble({ message, userInitials, userAvatarUrl, files }: UserMessageBubbleProps) {
-  const hasFiles = files && files.length > 0;
+export function UserMessageBubble({ message, userInitials, userAvatarUrl, onOpenFilePreview }: UserMessageBubbleProps) {
+  const uploadedFiles = getUploadedFileRefs(message.parts);
+  const hasFiles = uploadedFiles.length > 0;
 
   return (
     <div className="!mt-10 flex items-start justify-end gap-3">
       <div className="flex flex-col items-end gap-2">
         {hasFiles ? (
           <div className="flex flex-wrap justify-end gap-2">
-            {files.map((file) => (
-              <FileUploadBadge key={file.id} fileName={file.fileName} rowCount={file.rowCount} />
+            {uploadedFiles.map((file) => (
+              <MessageFileChip key={file.fileId} file={file} onOpenFilePreview={onOpenFilePreview} />
             ))}
           </div>
         ) : null}

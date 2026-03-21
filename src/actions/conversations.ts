@@ -5,23 +5,25 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db/client';
 import { conversations } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
+import { buildUserMessageParts } from '@/lib/chat/user-message-parts';
 import { createInitialUserMessage } from '@/services/messages';
 import { deleteConversation as deleteConversationService } from '@/services/conversations';
 import { generateTitle } from '@/services/ai';
 import { uuidv7 } from 'uuidv7';
-import type { AppUIMessage } from '@/types/ai';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
 
-function createTextUserMessage(text: string): AppUIMessage {
+function createUserMessage(text: string, uploadedFiles: readonly UploadedFileData[] = []): AppUIMessage {
   return {
     id: uuidv7(),
     role: 'user',
-    parts: [{ type: 'text', text }],
+    parts: buildUserMessageParts(text, uploadedFiles),
   };
 }
 
 export async function createConversation(
   initialMessage: string,
   existingConversationId?: string,
+  uploadedFiles: readonly UploadedFileData[] = [],
 ): Promise<{ id: string; messageId: string }> {
   const user = await getCurrentUser();
   const message = initialMessage.trim();
@@ -43,7 +45,7 @@ export async function createConversation(
     conversationId = convo.id;
   }
 
-  const uiMessage = createTextUserMessage(message);
+  const uiMessage = createUserMessage(message, uploadedFiles);
 
   const [, title] = await Promise.all([
     createInitialUserMessage(conversationId, uiMessage),

@@ -4,7 +4,8 @@ import { useChat } from '@ai-sdk/react';
 import type { ChatOnDataCallback, ChatOnErrorCallback, ChatOnFinishCallback } from 'ai';
 import { DefaultChatTransport } from 'ai';
 import { useState } from 'react';
-import type { AppUIMessage } from '@/types/ai';
+import { buildUserMessageParts } from '@/lib/chat/user-message-parts';
+import type { AppUIMessage, UploadedFileData } from '@/types/ai';
 
 const PLACEHOLDER_ID = '__pending__';
 
@@ -34,9 +35,12 @@ export function useAppChat(
     }),
   });
 
-  const handleSend = () => {
-    if (!input.trim() || !conversationId) return;
-    chat.sendMessage({ text: input });
+  const handleSend = (uploadedFiles: readonly UploadedFileData[] = []) => {
+    const messageText = input.trim();
+    if (!messageText || !conversationId) return;
+    chat.sendMessage({
+      parts: buildUserMessageParts(messageText, uploadedFiles),
+    });
     setInput('');
   };
 

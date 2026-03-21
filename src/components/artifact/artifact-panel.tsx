@@ -8,7 +8,7 @@ import { ArtifactPanelHeader } from '@/components/artifact/artifact-panel-header
 import { ArtifactStatusFooter } from '@/components/artifact/artifact-status-footer';
 import type { ArtifactPanelProps, ArtifactPanelView } from '@/types/components';
 
-const ArtifactSandpack = dynamic(() => import('./artifact-sandpack').then((m) => m.ArtifactSandpack), {
+const ArtifactPanelSurface = dynamic(() => import('./artifact-panel-surface').then((m) => m.ArtifactPanelSurface), {
   ssr: false,
   loading: () => <div className="h-full animate-pulse bg-muted" />,
 });
@@ -38,7 +38,7 @@ export function ArtifactPanel({
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ArtifactSandpack
+        <ArtifactPanelSurface
           artifactKey={artifact.key}
           files={artifact.files}
           view={view}

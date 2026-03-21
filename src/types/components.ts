@@ -11,16 +11,15 @@ export interface ArtifactPanelProps {
   readonly onClose: () => void;
 }
 
-export interface ArtifactSandpackProps {
+export interface ArtifactRuntimeSurfaceProps {
   readonly artifactKey: string;
   readonly files: Readonly<Record<string, string>>;
-  readonly view: ArtifactPanelView;
   readonly onRuntimeEvent: (event: ArtifactRuntimeEvent) => void;
 }
 
 export interface FileUploadBadgeProps {
   readonly fileName: string;
-  readonly rowCount: number;
+  readonly fileType: string;
 }
 
 export interface SidebarItemProps {

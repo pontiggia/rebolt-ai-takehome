@@ -1,4 +1,4 @@
-import type { DataUIPart, UIMessage } from 'ai';
+import type { UIMessage } from 'ai';
 
 export const AI_MODELS = {
   analysis: 'gpt-4.1',
@@ -61,7 +61,14 @@ export interface AgentActivityData {
   readonly toolCallId?: string;
 }
 
-export type AppUIDataParts = Record<'agent-activity', AgentActivityData>;
+export interface UploadedFileData {
+  readonly fileId: string;
+  readonly fileName: string;
+  readonly fileType: string;
+  readonly rowCount: number;
+}
+
+export type AppUIDataParts = Record<'agent-activity', AgentActivityData> & Record<'uploaded-file', UploadedFileData>;
 
 export type AppUITools = {
   analyzeData: {
@@ -81,6 +88,7 @@ export type AppUITools = {
 export type AppUIMessage = UIMessage<unknown, AppUIDataParts, AppUITools>;
 export type AppUIMessagePart = AppUIMessage['parts'][number];
 export type AgentActivityDataPart = Extract<AppUIMessagePart, { type: 'data-agent-activity' }>;
+export type UploadedFileDataPart = Extract<AppUIMessagePart, { type: 'data-uploaded-file' }>;
 export type AnalyzeDataToolInvocation = Extract<AppUIMessagePart, { type: 'tool-analyzeData' }>;
 export type ReadDatasetRowsToolInvocation = Extract<AppUIMessagePart, { type: 'tool-readDatasetRows' }>;
 export type GenerateArtifactToolInvocation = Extract<AppUIMessagePart, { type: 'tool-generateArtifact' }>;
@@ -101,6 +109,6 @@ export interface AppAIExecutionContext {
   readonly reportActivity?: AgentActivityReporter;
 }
 
-export type AgentActivityDataChunk = DataUIPart<AppUIDataParts> & {
+export type AgentActivityDataChunk = AgentActivityDataPart & {
   readonly transient?: boolean;
 };
