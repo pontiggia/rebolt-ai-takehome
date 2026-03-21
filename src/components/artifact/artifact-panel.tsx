@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { ArtifactDownloadButton } from '@/components/artifact/artifact-download-button';
 import { ArtifactPanelEmptyState } from '@/components/artifact/artifact-panel-empty-state';
 import { ArtifactPanelHeader } from '@/components/artifact/artifact-panel-header';
 import { ArtifactStatusFooter } from '@/components/artifact/artifact-status-footer';
@@ -28,7 +29,13 @@ export function ArtifactPanel({
 
   return (
     <div className="flex h-full w-full flex-col">
-      <ArtifactPanelHeader title={artifact.title} view={view} onViewChange={setView} onClose={onClose} />
+      <ArtifactPanelHeader
+        title={artifact.title}
+        view={view}
+        onViewChange={setView}
+        actions={<ArtifactDownloadButton key={artifact.key} artifact={artifact} />}
+        onClose={onClose}
+      />
 
       <div className="min-h-0 flex-1 overflow-hidden">
         <ArtifactSandpack
