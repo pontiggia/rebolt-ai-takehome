@@ -32,6 +32,7 @@ export function findLatestSuccessfulArtifact(messages: readonly AppUIMessage[]):
         assistantMessageId: message.id,
         toolCallId: part.toolCallId,
         fileId: output.fileId ?? null,
+        datasetUrl: output.datasetUrl ?? null,
         title: output.title ?? input?.title ?? null,
         description: input?.description ?? null,
         files: output.files,

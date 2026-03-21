@@ -5,7 +5,7 @@ import { SandpackProvider } from '@codesandbox/sandpack-react';
 import { ArtifactSandpackCodePane } from '@/components/artifact/artifact-sandpack-code-pane';
 import { ArtifactSandpackPreviewPane } from '@/components/artifact/artifact-sandpack-preview-pane';
 import { ArtifactSandpackRuntimeBridge } from '@/components/artifact/artifact-sandpack-runtime-bridge';
-import { ARTIFACT_SANDBOX_SETUP } from '@/lib/artifact-runtime';
+import { ARTIFACT_SANDBOX_SETUP, ARTIFACT_TAILWIND_CDN_URL } from '@/lib/artifact-runtime';
 import type { ArtifactSandpackProps } from '@/types/components';
 
 const ENTRY_FILE = `
@@ -32,7 +32,7 @@ export function ArtifactSandpack({ artifactKey, files, view, onRuntimeEvent }: A
   const options = useMemo(
     () => ({
       activeFile: '/src/App.tsx' as string,
-      externalResources: ['https://cdn.tailwindcss.com'],
+      externalResources: [ARTIFACT_TAILWIND_CDN_URL],
     }),
     [],
   );

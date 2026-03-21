@@ -116,7 +116,12 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
         },
       });
 
-      return { title, fileId: fileData?.fileId ?? null, files };
+      return {
+        title,
+        fileId: fileData?.fileId ?? null,
+        datasetUrl: fileData?.datasetUrl ?? null,
+        files,
+      };
     },
   });
 }

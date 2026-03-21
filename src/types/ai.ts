@@ -43,6 +43,7 @@ export interface ArtifactToolInput {
 export interface ArtifactToolOutput {
   readonly title: string;
   readonly fileId: string | null;
+  readonly datasetUrl?: string | null;
   readonly files: Readonly<Record<string, string>>;
 }
 

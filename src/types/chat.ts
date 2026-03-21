@@ -35,6 +35,7 @@ export interface ActiveArtifact {
   readonly assistantMessageId: string;
   readonly toolCallId: string;
   readonly fileId: string | null;
+  readonly datasetUrl?: string | null;
   readonly title: string | null;
   readonly description: string | null;
   readonly files: Readonly<Record<string, string>>;

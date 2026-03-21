@@ -6,6 +6,14 @@ export const ARTIFACT_RUNTIME_DEPENDENCIES = {
   'react-is': '17.0.2',
 } as const;
 
+export const ARTIFACT_EXPORT_DEV_DEPENDENCIES = {
+  vite: 'latest',
+  '@vitejs/plugin-react': 'latest',
+  typescript: 'latest',
+  '@types/react': 'latest',
+  '@types/react-dom': 'latest',
+} as const;
+
 export const ARTIFACT_CODEGEN_PACKAGES = ['react', 'react-dom', 'recharts', 'lucide-react'] as const;
 
 export const ARTIFACT_RUNTIME_VERSION_SUMMARY = [
@@ -14,6 +22,8 @@ export const ARTIFACT_RUNTIME_VERSION_SUMMARY = [
   `recharts@${ARTIFACT_RUNTIME_DEPENDENCIES.recharts}`,
   `lucide-react@${ARTIFACT_RUNTIME_DEPENDENCIES['lucide-react']}`,
 ].join(', ');
+
+export const ARTIFACT_TAILWIND_CDN_URL = 'https://cdn.tailwindcss.com' as const;
 
 export const ARTIFACT_SANDBOX_SETUP = {
   dependencies: ARTIFACT_RUNTIME_DEPENDENCIES,
