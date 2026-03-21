@@ -58,20 +58,8 @@ export function ReadDatasetRowsToolPart({ part }: { readonly part: ReadDatasetRo
   );
 }
 
-export function GenerateArtifactToolPart({
-  part,
-  onArtifactClick,
-  mode,
-}: {
-  readonly part: GenerateArtifactToolInvocation;
-  readonly onArtifactClick?: () => void;
-  readonly mode: 'instructions' | 'card';
-}) {
+export function GenerateArtifactToolInstructionsPart({ part }: { readonly part: GenerateArtifactToolInvocation }) {
   if (part.state === 'output-error') {
-    if (mode === 'card') {
-      return null;
-    }
-
     const input = part.input as Partial<ArtifactToolInput> | undefined;
     return (
       <ToolErrorSection label="Artifact generation failed" error={part.errorText} description={input?.description} />
@@ -80,10 +68,6 @@ export function GenerateArtifactToolPart({
 
   if (part.state !== 'output-available') {
     return null;
-  }
-
-  if (mode === 'card') {
-    return <ArtifactCard title={part.output.title} onClick={onArtifactClick} />;
   }
 
   if (!part.input.description) {
@@ -95,4 +79,18 @@ export function GenerateArtifactToolPart({
       <p>{part.input.description}</p>
     </CollapsibleSection>
   );
+}
+
+export function GenerateArtifactToolCardPart({
+  part,
+  onArtifactClick,
+}: {
+  readonly part: GenerateArtifactToolInvocation;
+  readonly onArtifactClick?: () => void;
+}) {
+  if (part.state !== 'output-available') {
+    return null;
+  }
+
+  return <ArtifactCard title={part.output.title} onClick={onArtifactClick} />;
 }
