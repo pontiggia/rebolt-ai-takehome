@@ -40,39 +40,7 @@ Key working features:
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    U["User Browser"] --> L["/ landing page"]
-    U --> C["/chat workspace"]
-
-    subgraph Next["Next.js 16 App Router"]
-      L
-      C
-      SA["Server actions<br/>createConversation<br/>createConversationOnly<br/>removeConversation<br/>signOutAction"]
-      API1["POST /api/chat"]
-      API2["POST /api/upload"]
-      API3["GET /api/files/[fileId]/preview"]
-      AUTH["WorkOS auth layer<br/>proxy.ts + callback route"]
-    end
-
-    C --> API1
-    C --> API2
-    C --> API3
-    C --> SA
-    L --> AUTH
-    C --> AUTH
-
-    API1 --> DB[("PostgreSQL")]
-    API2 --> DB
-    SA --> DB
-
-    API2 --> BLOB["Vercel Blob<br/>original uploads + dataset envelopes"]
-    API3 --> BLOB
-    API1 --> BLOB
-
-    C --> SP["Sandpack runtime<br/>preview + code view + background validator"]
-    SP --> BLOB
-```
+(![Architecture Diagram](./architecture.png))
 
 At a high level, the authenticated chat UI is a server-rendered shell that hydrates a client `ChatView`. Uploads are parsed on the server, persisted as metadata in Postgres, and mirrored into a normalized dataset blob so the AI tools and generated artifacts can work against the full dataset. Chat responses stream as typed AI SDK UI messages, which means the frontend renders structured tool output, live agent activity, markdown, and artifact cards without parsing ad-hoc text.
 
@@ -100,19 +68,15 @@ pnpm install
 
 ### Environment Variables
 
-The repository ships an `.env.example` with the expected runtime configuration. Only `DATABASE_URL` is referenced directly in repository source; the rest are required by the integrated SDKs/services used by the app.
-
-| Name | Description | Required? | Example value |
-| ---- | ----------- | --------- | ------------- |
-| `WORKOS_API_KEY` | WorkOS AuthKit server API key | Yes | `sk-...` |
-| `WORKOS_CLIENT_ID` | WorkOS AuthKit client ID | Yes | `client_...` |
-| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | Public callback URI used by the auth flow | Yes | `http://localhost:3000/auth/callback` |
-| `WORKOS_COOKIE_PASSWORD` | Cookie/session encryption secret; the template requires a 32+ character random string | Yes | `super-long-random-secret-value-123456` |
-| `DATABASE_URL` | PostgreSQL connection string used by Drizzle and the `pg` pool | Yes | `postgresql://postgres:postgres@localhost:5432/rebolt_ai` |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token for original uploads and dataset-envelope blobs | Yes | `vercel_blob_rw_...` |
-| `OPENAI_API_KEY` | OpenAI API key for streaming chat, artifact generation, and title/analysis calls | Yes | `sk-...` |
-
-The `.env.example` comment labels the database as “PlanetScale Postgres — use pooled connection URL”, but the application code itself only requires a PostgreSQL-compatible `DATABASE_URL`.
+| Name                              | Required? | Example value                                             |
+| --------------------------------- | --------- | --------------------------------------------------------- |
+| `WORKOS_API_KEY`                  | Yes       | `sk-...`                                                  |
+| `WORKOS_CLIENT_ID`                | Yes       | `client_...`                                              |
+| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | Yes       | `http://localhost:3000/auth/callback`                     |
+| `WORKOS_COOKIE_PASSWORD`          | Yes       | `super-long-random-secret-value-123456`                   |
+| `DATABASE_URL`                    | Yes       | `postgresql://postgres:postgres@localhost:5432/rebolt_ai` |
+| `BLOB_READ_WRITE_TOKEN`           | Yes       | `vercel_blob_rw_...`                                      |
+| `OPENAI_API_KEY`                  | Yes       | `sk-...`                                                  |
 
 ### Database Setup
 
@@ -227,13 +191,10 @@ The AI tools that are verifiable from the product code itself are:
 
 ## Known Limitations
 
-- The repo only references `DATABASE_URL` directly. Auth, OpenAI, and Blob credential names are implicit, which makes first-run setup less self-documenting than it should be.
-- The migration history and the Drizzle schema disagree on `files.blob_url` nullability.
 - Deleting a conversation removes database rows but does not delete the underlying blob objects.
-- Upload parsing does not currently enforce the `maxRows` constant, and `UploadResponse.truncated` is not meaningful in practice.
 - Spreadsheet preview only uses the first worksheet and only returns an excerpt, not a full workbook view.
 - There are no automated tests or smoke scripts for the upload → chat → artifact → retry path.
-- The repository does not pin a Node.js version.
+- You cannot see the code of the artifacts streamed as its generated.
 
 ## License
 

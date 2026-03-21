@@ -12,20 +12,20 @@ An authenticated spreadsheet chat application that lets users upload CSV/XLS/XLS
 
 <!-- source: package.json, src/app/layout.tsx, src/lib/chat/create-chat-ui-stream.ts, src/services/uploads.ts -->
 
-| Layer                | Technology                                                             | Purpose                                                                                  |
-| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Framework            | Next.js 16.2.0 + React 19.2.4 + TypeScript                             | App Router application shell, server components, route handlers, client UI              |
-| Auth                 | WorkOS AuthKit (`@workos-inc/authkit-nextjs`)                          | Session handling, auth redirects, authenticated user access                             |
-| AI Runtime           | Vercel AI SDK 6 (`ai`, `@ai-sdk/react`, `@ai-sdk/openai`)             | Streaming chat, tool execution, typed UI messages, model validation                     |
-| AI Models            | `gpt-4.1`, `gpt-5.4-mini`, `gpt-5.4-nano`                             | Chat orchestration, artifact code generation, titles, structured dataset analysis       |
-| Database             | PostgreSQL + `pg`                                                      | Persistent storage for users, conversations, messages, and uploaded-file metadata       |
-| ORM / Migrations     | Drizzle ORM + drizzle-kit                                              | Type-safe schema, queries, and SQL migrations                                           |
-| File Storage         | Vercel Blob                                                            | Original file storage and normalized dataset-envelope storage                           |
-| File Parsing         | Papa Parse + SheetJS (`xlsx`)                                          | CSV/XLS/XLSX parsing and first-sheet preview generation                                 |
-| Artifact Runtime     | `@codesandbox/sandpack-react`                                          | In-browser compilation/rendering of generated React artifacts                           |
-| Artifact Export      | JSZip + generated Vite scaffold                                        | Downloading artifact source as a standalone ZIP project                                 |
-| UI / Styling         | Tailwind CSS v4 + custom components + Lucide + Base UI Dialog          | Application styling, icons, and modal primitives                                        |
-| Markdown Rendering   | `react-markdown` + `remark-gfm` + `rehype-sanitize`                   | Safe assistant markdown rendering with code blocks and tables                           |
+| Layer              | Technology                                                    | Purpose                                                                           |
+| ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Framework          | Next.js 16.2.0 + React 19.2.4 + TypeScript                    | App Router application shell, server components, route handlers, client UI        |
+| Auth               | WorkOS AuthKit (`@workos-inc/authkit-nextjs`)                 | Session handling, auth redirects, authenticated user access                       |
+| AI Runtime         | Vercel AI SDK 6 (`ai`, `@ai-sdk/react`, `@ai-sdk/openai`)     | Streaming chat, tool execution, typed UI messages, model validation               |
+| AI Models          | `gpt-4.1`, `gpt-5.4-mini`, `gpt-5.4-nano`                     | Chat orchestration, artifact code generation, titles, structured dataset analysis |
+| Database           | PostgreSQL + `pg`                                             | Persistent storage for users, conversations, messages, and uploaded-file metadata |
+| ORM / Migrations   | Drizzle ORM + drizzle-kit                                     | Type-safe schema, queries, and SQL migrations                                     |
+| File Storage       | Vercel Blob                                                   | Original file storage and normalized dataset-envelope storage                     |
+| File Parsing       | Papa Parse + SheetJS (`xlsx`)                                 | CSV/XLS/XLSX parsing and first-sheet preview generation                           |
+| Artifact Runtime   | `@codesandbox/sandpack-react`                                 | In-browser compilation/rendering of generated React artifacts                     |
+| Artifact Export    | JSZip + generated Vite scaffold                               | Downloading artifact source as a standalone ZIP project                           |
+| UI / Styling       | Tailwind CSS v4 + custom components + Lucide + Base UI Dialog | Application styling, icons, and modal primitives                                  |
+| Markdown Rendering | `react-markdown` + `remark-gfm` + `rehype-sanitize`           | Safe assistant markdown rendering with code blocks and tables                     |
 
 ---
 
@@ -102,8 +102,12 @@ export const users = pgTable('users', {
 export const conversations = pgTable(
   'conversations',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
-    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull().default('New Chat'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -114,8 +118,12 @@ export const conversations = pgTable(
 export const messages = pgTable(
   'messages',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
-    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
     uiMessageId: text('ui_message_id').notNull(),
     role: text('role', { enum: ['user', 'assistant'] }).notNull(),
     content: text('content').notNull(),
@@ -131,9 +139,15 @@ export const messages = pgTable(
 export const files = pgTable(
   'files',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
-    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
     fileName: text('file_name').notNull(),
     fileType: text('file_type').notNull(),
     fileSize: integer('file_size').notNull(),
@@ -149,11 +163,11 @@ export const files = pgTable(
 
 **Notes from the current implementation:**
 
-| Concern | Current behavior |
-| ------- | ---------------- |
-| Message persistence | `messages.content` stores extracted text, while `messages.parts` stores the full AI SDK UI message parts for replay/rendering. |
-| Dataset storage | There is no dataset table. Full normalized datasets are stored as JSON blobs under `datasets/<fileId>.json`. |
-| Migration drift | `src/db/schema.ts` marks `files.blobUrl` as required, but `drizzle/0001_hot_skrulls.sql` drops the `NOT NULL` constraint. Fresh migrations therefore allow null even though the app writes it as required. |
+| Concern             | Current behavior                                                                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Message persistence | `messages.content` stores extracted text, while `messages.parts` stores the full AI SDK UI message parts for replay/rendering.                                                                             |
+| Dataset storage     | There is no dataset table. Full normalized datasets are stored as JSON blobs under `datasets/<fileId>.json`.                                                                                               |
+| Migration drift     | `src/db/schema.ts` marks `files.blobUrl` as required, but `drizzle/0001_hot_skrulls.sql` drops the `NOT NULL` constraint. Fresh migrations therefore allow null even though the app writes it as required. |
 
 ### Drizzle Config
 
@@ -259,26 +273,30 @@ export function errorResponse(error: AppError): Response {
 ```typescript
 export const chatBodySchema = z.object({
   conversationId: z.string().uuid(),
-  messages: z.array(
-    z.object({
-      id: z.string().min(1),
-      role: z.enum(['user', 'assistant']),
-      parts: z.array(z.unknown()),
-      metadata: z.unknown().optional(),
-    }),
-  ).min(1),
-  artifactRetry: z.object({
-    assistantMessageId: z.string().min(1),
-    artifactToolCallId: z.string().min(1),
-    fileId: z.string().uuid().nullable(),
-    artifactTitle: z.string().nullable(),
-    artifactDescription: z.string().nullable(),
-    files: z.record(z.string(), z.string()).nullable(),
-    error: z.string().min(1),
-    source: z.enum(ARTIFACT_RETRY_SOURCES),
-    attempt: z.number().int().positive(),
-    manual: z.boolean(),
-  }).optional(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        role: z.enum(['user', 'assistant']),
+        parts: z.array(z.unknown()),
+        metadata: z.unknown().optional(),
+      }),
+    )
+    .min(1),
+  artifactRetry: z
+    .object({
+      assistantMessageId: z.string().min(1),
+      artifactToolCallId: z.string().min(1),
+      fileId: z.string().uuid().nullable(),
+      artifactTitle: z.string().nullable(),
+      artifactDescription: z.string().nullable(),
+      files: z.record(z.string(), z.string()).nullable(),
+      error: z.string().min(1),
+      source: z.enum(ARTIFACT_RETRY_SOURCES),
+      attempt: z.number().int().positive(),
+      manual: z.boolean(),
+    })
+    .optional(),
 });
 
 export interface UploadResponse {
@@ -342,7 +360,12 @@ export interface ArtifactRetryPayload {
   readonly artifactDescription: string | null;
   readonly files: Readonly<Record<string, string>> | null;
   readonly error: string;
-  readonly source: 'sandpack-runtime' | 'sandpack-notification' | 'sandpack-timeout' | 'tool-output-error' | 'request-error';
+  readonly source:
+    | 'sandpack-runtime'
+    | 'sandpack-notification'
+    | 'sandpack-timeout'
+    | 'tool-output-error'
+    | 'request-error';
   readonly attempt: number;
   readonly manual: boolean;
 }
@@ -439,13 +462,13 @@ Sandpack / runtime feedback   → structured retry payloads
 
 <!-- source: src/services/conversations.ts, src/services/uploads.ts -->
 
-| Service | Success value | Failure value |
-| ------- | ------------- | ------------- |
-| `getConversation()` | `Conversation` | `NotFoundError` |
-| `getOwnedFileRecord()` | `FileRecord` | `NotFoundError` |
-| `uploadConversationFile()` | `UploadResponse` | `NotFoundError \| FileError` |
-| `listConversations()` | `Conversation[]` | never |
-| `getConversationFileData()` | `FileDataContext \| null` | never |
+| Service                     | Success value             | Failure value                |
+| --------------------------- | ------------------------- | ---------------------------- |
+| `getConversation()`         | `Conversation`            | `NotFoundError`              |
+| `getOwnedFileRecord()`      | `FileRecord`              | `NotFoundError`              |
+| `uploadConversationFile()`  | `UploadResponse`          | `NotFoundError \| FileError` |
+| `listConversations()`       | `Conversation[]`          | never                        |
+| `getConversationFileData()` | `FileDataContext \| null` | never                        |
 
 ### Route Handlers Map Results to Responses
 
@@ -474,7 +497,11 @@ export const POST = withAuthHandler(async (req, { user }) => {
 ```typescript
 export function validateFile(file: File): Result<void, FileError> {
   if (!ALLOWED_FILE_TYPES.includes(file.type as AllowedFileType)) {
-    return err({ type: 'FILE_ERROR', message: `Invalid file type: ${file.type}. Allowed: CSV, XLSX.`, code: 'INVALID_TYPE' });
+    return err({
+      type: 'FILE_ERROR',
+      message: `Invalid file type: ${file.type}. Allowed: CSV, XLSX.`,
+      code: 'INVALID_TYPE',
+    });
   }
 
   if (file.size > FILE_LIMITS.maxSizeBytes) {
@@ -493,13 +520,13 @@ The parser also returns `FILE_ERROR` values for parse failures and column overfl
 
 These flows still throw plain exceptions today:
 
-| Location | Example throw path |
-| -------- | ------------------ |
-| `buildFilePreview()` | Blob fetch fails or spreadsheet preview generation fails |
-| `buildDatasetFromOriginalBlob()` | Original blob fetch fails or reparse fails |
-| `createGenerateArtifactTool()` | Codegen output cannot be parsed/validated into files |
-| `createConversation()` / `removeConversation()` | Invalid state inside server actions |
-| `createArtifactArchive()` | Dataset export or ZIP creation fails |
+| Location                                        | Example throw path                                       |
+| ----------------------------------------------- | -------------------------------------------------------- |
+| `buildFilePreview()`                            | Blob fetch fails or spreadsheet preview generation fails |
+| `buildDatasetFromOriginalBlob()`                | Original blob fetch fails or reparse fails               |
+| `createGenerateArtifactTool()`                  | Codegen output cannot be parsed/validated into files     |
+| `createConversation()` / `removeConversation()` | Invalid state inside server actions                      |
+| `createArtifactArchive()`                       | Dataset export or ZIP creation fails                     |
 
 ---
 
@@ -519,13 +546,13 @@ These flows still throw plain exceptions today:
 
 ### Key Files
 
-| File | Responsibility |
-| ---- | -------------- |
-| `src/proxy.ts` | Redirects authenticated `/` users into chat and unauthenticated `/chat*` users into WorkOS |
-| `src/app/auth/callback/route.ts` | Handles the WorkOS callback |
-| `src/app/layout.tsx` | Creates `AuthKitProvider` with server-derived `initialAuth` |
-| `src/lib/auth.ts` | Loads the current user and ensures a DB row exists |
-| `src/actions/auth.ts` | Server action for sign-out |
+| File                             | Responsibility                                                                             |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `src/proxy.ts`                   | Redirects authenticated `/` users into chat and unauthenticated `/chat*` users into WorkOS |
+| `src/app/auth/callback/route.ts` | Handles the WorkOS callback                                                                |
+| `src/app/layout.tsx`             | Creates `AuthKitProvider` with server-derived `initialAuth`                                |
+| `src/lib/auth.ts`                | Loads the current user and ensures a DB row exists                                         |
+| `src/actions/auth.ts`            | Server action for sign-out                                                                 |
 
 ### Environment Variables
 
@@ -585,19 +612,19 @@ export default async function proxy(request: NextRequest) {
 
 The upload route accepts `multipart/form-data` with:
 
-| Field | Type | Notes |
-| ----- | ---- | ----- |
-| `conversationId` | UUID string | Must belong to the current user |
-| `file` | `File` | First uploaded file from the picker/drop interaction |
+| Field            | Type        | Notes                                                |
+| ---------------- | ----------- | ---------------------------------------------------- |
+| `conversationId` | UUID string | Must belong to the current user                      |
+| `file`           | `File`      | First uploaded file from the picker/drop interaction |
 
 ### Storage Strategy
 
 The current implementation stores uploaded data in three places:
 
-| Layer | Stored value |
-| ----- | ------------ |
-| Vercel Blob | Original file contents via `put(file.name, file, ...)` |
-| Vercel Blob | Normalized dataset envelope JSON at `datasets/<fileId>.json` |
+| Layer                  | Stored value                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| Vercel Blob            | Original file contents via `put(file.name, file, ...)`                                         |
+| Vercel Blob            | Normalized dataset envelope JSON at `datasets/<fileId>.json`                                   |
 | PostgreSQL `files` row | `fileName`, `fileType`, `fileSize`, `blobUrl`, `columnNames`, `rowCount`, first 20 sample rows |
 
 There is no server-side file transformation pipeline beyond parsing plus dataset-envelope generation. The normalized dataset is generated immediately during upload.
@@ -623,14 +650,14 @@ export async function uploadConversationFile({ conversationId, userId, file }) {
 
 What is actually enforced today:
 
-| Rule | Status |
-| ---- | ------ |
-| Allowed types | CSV, XLSX, XLS MIME types only |
-| Max size | 5 MB |
-| Max columns | 150 |
-| Max rows | Not enforced in the current parser path |
-| Sample rows stored in DB | 20 |
-| Preview rows returned from upload response | 5 |
+| Rule                                       | Status                                  |
+| ------------------------------------------ | --------------------------------------- |
+| Allowed types                              | CSV, XLSX, XLS MIME types only          |
+| Max size                                   | 5 MB                                    |
+| Max columns                                | 150                                     |
+| Max rows                                   | Not enforced in the current parser path |
+| Sample rows stored in DB                   | 20                                      |
+| Preview rows returned from upload response | 5                                       |
 
 ### Preview Route
 
@@ -638,10 +665,10 @@ What is actually enforced today:
 
 `GET /api/files/[fileId]/preview` verifies file ownership, fetches the original blob, and returns a preview excerpt:
 
-| File type | Preview strategy |
-| --------- | ---------------- |
-| CSV | Raw text excerpt, capped to 160 lines or 24 KB |
-| XLS/XLSX | Converts the first worksheet to CSV text, then applies the same excerpt logic |
+| File type | Preview strategy                                                              |
+| --------- | ----------------------------------------------------------------------------- |
+| CSV       | Raw text excerpt, capped to 160 lines or 24 KB                                |
+| XLS/XLSX  | Converts the first worksheet to CSV text, then applies the same excerpt logic |
 
 The preview response includes a summary label, an explanatory note, preview text, and a `truncated` flag.
 
@@ -653,22 +680,22 @@ The preview response includes a summary label, an explanatory note, preview text
 
 ### Multi-Model Routing via Tools
 
-| Responsibility | Model | Where it is used |
-| -------------- | ----- | ---------------- |
-| Main streaming assistant | `gpt-4.1` | `streamText()` inside `createChatUIStream()` |
-| Artifact code generation | `gpt-5.4-mini` | `generateText()` inside `createGenerateArtifactTool()` |
-| Title generation | `gpt-5.4-nano` | `generateTitle()` |
-| Structured full-dataset analysis | `gpt-5.4-nano` | `createAnalyzeDataTool()` |
+| Responsibility                   | Model          | Where it is used                                       |
+| -------------------------------- | -------------- | ------------------------------------------------------ |
+| Main streaming assistant         | `gpt-4.1`      | `streamText()` inside `createChatUIStream()`           |
+| Artifact code generation         | `gpt-5.4-mini` | `generateText()` inside `createGenerateArtifactTool()` |
+| Title generation                 | `gpt-5.4-nano` | `generateTitle()`                                      |
+| Structured full-dataset analysis | `gpt-5.4-nano` | `createAnalyzeDataTool()`                              |
 
 ### Multi-Step Tool Chain
 
 The assistant currently has three tools:
 
-| Tool | Purpose |
-| ---- | ------- |
-| `analyzeData` | Inspect full dataset structure/profile and produce summary + insights |
-| `readDatasetRows` | Read exact rows from the normalized full dataset with safety caps |
-| `generateArtifact` | Produce a multi-file React artifact and inject the dataset helper |
+| Tool               | Purpose                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| `analyzeData`      | Inspect full dataset structure/profile and produce summary + insights |
+| `readDatasetRows`  | Read exact rows from the normalized full dataset with safety caps     |
+| `generateArtifact` | Produce a multi-file React artifact and inject the dataset helper     |
 
 The main agent is configured with `stopWhen: stepCountIs(5)`, not `3`.
 
@@ -1056,57 +1083,57 @@ The current UI is restrained and border-driven. Most surfaces are white or token
 
 <!-- source: src/app/layout.tsx, src/components/message/markdown-renderer.tsx -->
 
-| Usage | Implementation |
-| ----- | -------------- |
-| Primary sans serif | Inter via `next/font/google` |
-| Monospace | Geist Mono via `geist/font/mono` |
-| Empty-state heading | `text-3xl font-bold` |
-| Landing-page heading | `text-4xl font-bold tracking-tight` |
+| Usage                | Implementation                                   |
+| -------------------- | ------------------------------------------------ |
+| Primary sans serif   | Inter via `next/font/google`                     |
+| Monospace            | Geist Mono via `geist/font/mono`                 |
+| Empty-state heading  | `text-3xl font-bold`                             |
+| Landing-page heading | `text-4xl font-bold tracking-tight`              |
 | Body copy / messages | `text-sm` to `text-[15px]` depending on renderer |
-| Code | Geist Mono in code blocks and file previews |
+| Code                 | Geist Mono in code blocks and file previews      |
 
 ### Color Palette
 
 Only a few literal colors are hardcoded in TSX; most surfaces rely on semantic design tokens (`background`, `foreground`, `muted`, `border`, `primary`):
 
-| Color / token | Where it appears |
-| ------------- | ---------------- |
-| `#006AFE` | Submit button active fill; primary accent throughout the app |
-| `#0D0E10` | Landing CTA fill and inactive submit button fill |
-| `bg-primary/[0.07]` + `#1e3a5f` text | User message bubble |
-| `bg-muted`, `bg-muted/30`, `border` | Sidebar rows, artifact panel header/footer, file chips, dialogs |
+| Color / token                        | Where it appears                                                |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `#006AFE`                            | Submit button active fill; primary accent throughout the app    |
+| `#0D0E10`                            | Landing CTA fill and inactive submit button fill                |
+| `bg-primary/[0.07]` + `#1e3a5f` text | User message bubble                                             |
+| `bg-muted`, `bg-muted/30`, `border`  | Sidebar rows, artifact panel header/footer, file chips, dialogs |
 
 ### Component Styling
 
-| Component | Current treatment |
-| --------- | ----------------- |
-| Sidebar | 260px expanded / 60px collapsed, border-right, list-style conversation rows |
-| Composer | Rounded 2xl bordered surface with attach button, growing textarea, icon submit button |
-| User bubble | Right-aligned, rounded 2xl with subtle primary tint |
-| Artifact card | Bordered rounded tile with icon, title, and status text |
-| Artifact panel | Border-left panel with preview/code toggle pills and close button |
-| File preview dialog | Large centered modal with blurred backdrop and bordered preview surface |
+| Component           | Current treatment                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| Sidebar             | 260px expanded / 60px collapsed, border-right, list-style conversation rows           |
+| Composer            | Rounded 2xl bordered surface with attach button, growing textarea, icon submit button |
+| User bubble         | Right-aligned, rounded 2xl with subtle primary tint                                   |
+| Artifact card       | Bordered rounded tile with icon, title, and status text                               |
+| Artifact panel      | Border-left panel with preview/code toggle pills and close button                     |
+| File preview dialog | Large centered modal with blurred backdrop and bordered preview surface               |
 
 ### Spacing & Layout
 
-| Area | Current rule |
-| ---- | ------------ |
-| Chat message column | `max-w-3xl` centered |
-| Empty-state vertical offset | `pt-[20vh]` |
-| Artifact pane width | Defaults to 50vw, minimum 300px, maximum 70vw |
-| File preview dialog | `min(760px, calc(100vw - 2rem))` |
+| Area                        | Current rule                                  |
+| --------------------------- | --------------------------------------------- |
+| Chat message column         | `max-w-3xl` centered                          |
+| Empty-state vertical offset | `pt-[20vh]`                                   |
+| Artifact pane width         | Defaults to 50vw, minimum 300px, maximum 70vw |
+| File preview dialog         | `min(760px, calc(100vw - 2rem))`              |
 
 ### States
 
-| State | Visual Treatment |
-| ----- | ---------------- |
-| Empty conversation | Centered heading plus composer |
-| Upload in progress | Attach button shows spinner |
-| Chat generating | `Thinking...` row when no assistant content is visible yet |
-| Artifact validating | Footer text `Validating artifact...` |
-| Artifact self-correcting | Footer text `Self-correcting...` plus last error |
-| Artifact failed / exhausted | Destructive footer text and `Try again` button |
-| File preview loading | Spinner in modal body |
+| State                       | Visual Treatment                                           |
+| --------------------------- | ---------------------------------------------------------- |
+| Empty conversation          | Centered heading plus composer                             |
+| Upload in progress          | Attach button shows spinner                                |
+| Chat generating             | `Thinking...` row when no assistant content is visible yet |
+| Artifact validating         | Footer text `Validating artifact...`                       |
+| Artifact self-correcting    | Footer text `Self-correcting...` plus last error           |
+| Artifact failed / exhausted | Destructive footer text and `Try again` button             |
+| File preview loading        | Spinner in modal body                                      |
 
 ---
 
@@ -1132,11 +1159,11 @@ Validates the `fileId` route param, verifies ownership, fetches the original fil
 
 <!-- source: src/actions/conversations.ts -->
 
-| Action | What it does |
-| ------ | ------------ |
-| `createConversation()` | Creates or reuses a conversation, inserts the first user message, and attempts title generation |
-| `createConversationOnly()` | Creates a blank conversation so uploads can happen before the first prompt |
-| `removeConversation()` | Deletes the conversation DB row after ownership validation, then revalidates `/chat` |
+| Action                     | What it does                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `createConversation()`     | Creates or reuses a conversation, inserts the first user message, and attempts title generation |
+| `createConversationOnly()` | Creates a blank conversation so uploads can happen before the first prompt                      |
+| `removeConversation()`     | Deletes the conversation DB row after ownership validation, then revalidates `/chat`            |
 
 Deleting a conversation currently removes database rows via cascades, but it does **not** delete the already-uploaded blob objects.
 
@@ -1254,59 +1281,11 @@ OPENAI_API_KEY=sk-...
 
 ---
 
-## 18. SOLID Architecture Principles
-
-<!-- source: src/lib/api.ts, src/services/*.ts, src/hooks/*.ts, src/components/*.tsx -->
-
-### S — Single Responsibility
-
-| Module | Current responsibility |
-| ------ | ---------------------- |
-| `src/lib/auth.ts` | Load authenticated user and ensure a DB user record exists |
-| `src/services/uploads.ts` | Coordinate upload validation, blob persistence, and DB insert |
-| `src/services/datasets.ts` | Ensure normalized dataset envelopes exist and are cached |
-| `src/hooks/use-artifact-retry.ts` | Manage artifact retry state and retry requests |
-| `src/components/artifact/artifact-sandpack-runtime-bridge.tsx` | Translate Sandpack events into runtime events |
-
-### O — Open/Closed
-
-- New AI tools can be added in `createChatTools()` without changing the rest of the message-persistence or route plumbing.
-- New artifact files can be generated without changing the panel runtime, because the panel consumes a generic `files` map.
-- New retry sources can be introduced by extending `ArtifactRetrySource` and the runtime-event mapping helpers.
-
-### L — Liskov Substitution
-
-- Route handlers expect a `withAuthHandler()` wrapper that can supply any handler matching `(req, ctx) => Promise<Response>`.
-- Artifact surfaces consume `ArtifactRuntimeEvent` values instead of Sandpack-specific message shapes.
-- Persisted `AppUIMessage['parts']` can be replayed into the same renderers for historical and live conversations.
-
-### I — Interface Segregation
-
-- `FileUploadBadgeProps` contains only `fileName` and `fileType`.
-- `ArtifactRuntimeSurfaceProps` contains only `artifactKey`, `files`, and `onRuntimeEvent`.
-- `Sidebar` receives a stripped-down `ConversationSummary[]`, not full conversation rows.
-
-### D — Dependency Inversion
-
-- API routes depend on services and type helpers, not inline SQL.
-- UI components depend on hooks and typed props, not on fetch logic directly.
-- Artifact export works from the `ActiveArtifact` abstraction, not from Sandpack internals.
-
-### React 19 Updates (vs. older patterns)
-
-| Pattern in this codebase | Where it appears |
-| ------------------------ | ---------------- |
-| `useEffectEvent()` | `ArtifactSandpackRuntimeBridge` uses it to safely emit runtime events from Sandpack listeners |
-| `startTransition()` | Sidebar deletion, artifact download flow, and live-activity updates |
-| Server components for data loading | `app/layout.tsx`, `app/chat/layout.tsx`, `app/chat/[conversationId]/page.tsx` |
-
----
-
 ## 19. Key Implementation Notes
 
 <!-- source: src/lib/chat/*.ts, src/lib/tools/*.ts, src/lib/datasets/*.ts, src/hooks/*.ts -->
 
-### AI SDK v6 Patterns (Verified Against Code)
+### AI SDK v6 Patterns
 
 - `createUIMessageStreamResponse()` is used in the chat route.
 - `createUIMessageStream()` is used to merge `streamText()` output into the response stream.
