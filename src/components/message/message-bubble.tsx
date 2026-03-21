@@ -1,9 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { MarkdownRenderer } from '@/components/markdown-renderer';
-import { FileUploadBadge } from '@/components/file-upload-badge';
-import { ToolInvocationPart } from '@/components/tool-invocation-part';
+import { MarkdownRenderer } from '@/components/message/markdown-renderer';
+import { FileUploadBadge } from '@/components/chat/file-upload-badge';
+import { ToolInvocationPart } from '@/components/message/tool-invocation-part';
 import type { FileMetadataResponse } from '@/types/api';
 import type { UIMessage } from 'ai';
 

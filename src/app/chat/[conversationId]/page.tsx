@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { ChatView } from '@/components/chat-view';
+import { ChatView } from '@/components/chat/chat-view';
 import { getCurrentUser } from '@/lib/auth';
 import { getConversationDetail } from '@/services/conversations';
 

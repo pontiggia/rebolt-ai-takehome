@@ -4,8 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { startTransition, useCallback, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { ConversationItem } from '@/components/conversation-item';
-import { UserCard } from '@/components/user-card';
+import { ConversationItem } from '@/components/sidebar/conversation-item';
+import { UserCard } from '@/components/sidebar/user-card';
 import { removeConversation } from '@/actions/conversations';
 import type { ConversationSummary } from '@/types/api';
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { type RefObject, useCallback, useRef, useState } from 'react';
-import { ChatInput } from '@/components/chat-input';
-import { FileUploadBadge } from '@/components/file-upload-badge';
+import { ChatInput } from '@/components/chat/chat-input';
+import { FileUploadBadge } from '@/components/chat/file-upload-badge';
 import type { FileMetadataResponse } from '@/types/api';
 
 interface ComposerInputProps {

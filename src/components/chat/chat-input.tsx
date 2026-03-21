@@ -1,10 +1,10 @@
 'use client';
 
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
-import { ChatInputToolbar } from '@/components/chat-input-toolbar';
-import { AttachButton } from '@/components/chat-input-attach-button';
-import { SubmitButton } from '@/components/chat-input-submit-button';
-import { ChatInputTextArea } from '@/components/chat-input-textarea';
+import { ChatInputToolbar } from '@/components/chat/chat-input-toolbar';
+import { AttachButton } from '@/components/chat/chat-input-attach-button';
+import { SubmitButton } from '@/components/chat/chat-input-submit-button';
+import { ChatInputTextArea } from '@/components/chat/chat-input-textarea';
 
 type ChatInputRootProps = Omit<ComponentPropsWithoutRef<'div'>, 'children'> & {
   readonly children: ReactNode;

@@ -1,18 +1,18 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import type { ChatOnFinishCallback, UIMessage } from 'ai';
+import { useEffect, useState, useCallback } from 'react';
 import { useAppChat } from '@/hooks/use-app-chat';
+import { useArtifactRequestRelay } from '@/hooks/use-artifact-request-relay';
 import { useConversation } from '@/hooks/use-conversation';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { useSentFiles } from '@/hooks/use-sent-files';
 import { useAutoReply } from '@/hooks/use-auto-reply';
 import { useArtifact } from '@/hooks/use-artifact';
 import { useArtifactPanel } from '@/hooks/use-artifact-panel';
-import { MessageBubble } from '@/components/message-bubble';
-import { ComposerInput } from '@/components/composer-input';
-import { ArtifactPanel } from '@/components/artifact-panel';
-import { ResizeHandle } from '@/components/resize-handle';
+import { ChatViewArtifactPane } from '@/components/chat/chat-view-artifact-pane';
+import { ChatViewConversationPane } from '@/components/chat/chat-view-conversation-pane';
+import { ChatViewEmptyState } from '@/components/chat/chat-view-empty-state';
+import { ComposerInput } from '@/components/chat/composer-input';
 import type { FileMetadataResponse, MessageResponse } from '@/types/api';
 
 interface ChatViewProps {
@@ -31,19 +31,11 @@ export function ChatView({
   initialFiles = [],
 }: ChatViewProps) {
   const conversation = useConversation({ propsConversationId, initialMessages });
-  type ChatFinishEvent = Parameters<ChatOnFinishCallback<UIMessage>>[0];
-  const artifactRequestCallbacksRef = useRef<{
-    onError?: (error: Error) => void;
-    onFinish?: (event: ChatFinishEvent) => void;
-  }>({});
-
-  const relayArtifactError = useCallback((nextError: Error) => {
-    artifactRequestCallbacksRef.current.onError?.(nextError);
-  }, []);
-
-  const relayArtifactFinish = useCallback((event: ChatFinishEvent) => {
-    artifactRequestCallbacksRef.current.onFinish?.(event);
-  }, []);
+  const {
+    relayError: relayArtifactError,
+    relayFinish: relayArtifactFinish,
+    setCallbacks: setArtifactRequestCallbacks,
+  } = useArtifactRequestRelay();
 
   const {
     messages,
@@ -90,13 +82,6 @@ export function ChatView({
   const { isOpen, setIsOpen, panelWidth, containerRef, handleResizeStart, handleResizeMove, handleResizeEnd } =
     useArtifactPanel(activeArtifact);
 
-  useEffect(() => {
-    artifactRequestCallbacksRef.current = {
-      onError: handleRequestError,
-      onFinish: handleRequestFinish,
-    };
-  }, [handleRequestError, handleRequestFinish]);
-
   useAutoReply({
     propsConversationId,
     chatConversationId: conversation.chatConversationId,
@@ -105,17 +90,19 @@ export function ChatView({
     regenerate,
   });
 
+  useEffect(() => {
+    setArtifactRequestCallbacks({
+      onError: handleRequestError,
+      onFinish: handleRequestFinish,
+    });
+  }, [handleRequestError, handleRequestFinish, setArtifactRequestCallbacks]);
+
   // Clear input when transitioning from empty state to conversation
   useEffect(() => {
     if (!conversation.isEmptyState) {
       setInput('');
     }
   }, [conversation.isEmptyState, setInput]);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleSend = useCallback(() => {
     const filesToSend = fileUpload.pendingFiles.length > 0 ? [...fileUpload.pendingFiles] : null;
@@ -142,6 +129,10 @@ export function ChatView({
     setIsOpen(false);
   }, [resetRuntimeState, setIsOpen]);
 
+  const handleOpenArtifactPanel = useCallback(() => {
+    setIsOpen(true);
+  }, [setIsOpen]);
+
   const composerInput = (
     <ComposerInput
       input={input}
@@ -159,71 +150,35 @@ export function ChatView({
   );
 
   if (conversation.isEmptyState) {
-    return (
-      <div className="flex h-full flex-col items-center px-4 pt-[20vh]">
-        <div className="w-full max-w-2xl space-y-6 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">What do you need?</h1>
-          {conversation.creationError && <p className="text-sm text-destructive">{conversation.creationError}</p>}
-          {composerInput}
-        </div>
-      </div>
-    );
+    return <ChatViewEmptyState creationError={conversation.creationError} composer={composerInput} />;
   }
-
-  const showPanel = activeArtifact !== null && isOpen;
-
-  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-  const showThinking =
-    isLoading &&
-    lastMessage !== null &&
-    !(
-      lastMessage.role === 'assistant' &&
-      lastMessage.parts.some((p) => (p.type === 'text' && p.text.length > 0) || p.type.startsWith('tool-'))
-    );
 
   return (
     <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-            {messages.map((msg, idx) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                userInitials={userInitials}
-                userAvatarUrl={userAvatarUrl}
-                files={sentFilesMap.get(idx)}
-                onArtifactClick={() => setIsOpen(true)}
-              />
-            ))}
-            {showThinking && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="animate-pulse">●</span> Thinking...
-              </div>
-            )}
-            {error && <p className="text-sm text-destructive">{error.message}</p>}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-        <div className="mx-auto w-full max-w-3xl px-4 pb-4">{composerInput}</div>
-      </div>
-      {showPanel && activeArtifact && (
-        <div ref={containerRef} className="relative flex h-full flex-col border-l" style={{ width: panelWidth }}>
-          <ResizeHandle
-            onResizeStart={handleResizeStart}
-            onResizeMove={handleResizeMove}
-            onResizeEnd={handleResizeEnd}
-          />
-          <ArtifactPanel
-            artifact={activeArtifact}
-            runtimeState={runtimeState}
-            isRetryDisabled={status !== 'ready'}
-            onManualRetry={handleManualRetry}
-            onRuntimeEvent={handleRuntimeEvent}
-            onClose={handleCloseArtifactPanel}
-          />
-        </div>
-      )}
+      <ChatViewConversationPane
+        messages={messages}
+        userInitials={userInitials}
+        userAvatarUrl={userAvatarUrl}
+        sentFilesMap={sentFilesMap}
+        isLoading={isLoading}
+        error={error}
+        composer={composerInput}
+        onArtifactClick={handleOpenArtifactPanel}
+      />
+      <ChatViewArtifactPane
+        artifact={activeArtifact}
+        isOpen={isOpen}
+        panelWidth={panelWidth}
+        containerRef={containerRef}
+        runtimeState={runtimeState}
+        isRetryDisabled={status !== 'ready'}
+        onManualRetry={handleManualRetry}
+        onRuntimeEvent={handleRuntimeEvent}
+        onClose={handleCloseArtifactPanel}
+        onResizeStart={handleResizeStart}
+        onResizeMove={handleResizeMove}
+        onResizeEnd={handleResizeEnd}
+      />
     </div>
   );
 }

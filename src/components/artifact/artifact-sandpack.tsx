@@ -2,9 +2,9 @@
 
 import { useMemo } from 'react';
 import { SandpackProvider } from '@codesandbox/sandpack-react';
-import { ArtifactSandpackCodePane } from '@/components/artifact-sandpack-code-pane';
-import { ArtifactSandpackPreviewPane } from '@/components/artifact-sandpack-preview-pane';
-import { ArtifactSandpackRuntimeBridge } from '@/components/artifact-sandpack-runtime-bridge';
+import { ArtifactSandpackCodePane } from '@/components/artifact/artifact-sandpack-code-pane';
+import { ArtifactSandpackPreviewPane } from '@/components/artifact/artifact-sandpack-preview-pane';
+import { ArtifactSandpackRuntimeBridge } from '@/components/artifact/artifact-sandpack-runtime-bridge';
 import { ARTIFACT_SANDBOX_SETUP } from '@/lib/artifact-runtime';
 import type { ArtifactSandpackProps } from '@/types/components';
 

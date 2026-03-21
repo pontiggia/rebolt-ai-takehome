@@ -11,7 +11,6 @@ interface UserCardProps {
 }
 
 function Avatar({
-  name,
   initials,
   avatarUrl,
   size = 32,
