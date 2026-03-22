@@ -1,4 +1,4 @@
-# Rebolt
+# Rebolt take home
 
 > Chat with CSV/Excel data and turn it into interactive React artifacts.
 
@@ -6,9 +6,7 @@
 
 ## Overview
 
-Rebolt is a Next.js 16 spreadsheet chat app with a browser-side artifact runtime. Users authenticate, upload a CSV/XLS/XLSX file, ask a question about the data, and receive a streamed assistant response that can inspect the full dataset, generate a multi-file React artifact, and render that artifact live in Sandpack.
-
-The implementation is opinionated in two important ways. First, uploads are stored twice: once as the original file blob and once as a normalized dataset-envelope JSON blob, which gives the agent and generated artifacts access to the full dataset instead of just a prompt sample. Second, generated artifacts are not treated as opaque strings; they are validated in a hidden Sandpack instance, retried automatically when they fail, and can be exported as a standalone ZIP project.
+This project is a Next.js 16 spreadsheet chat app with a browser-side artifact runtime. Users authenticate, upload a CSV/XLS/XLSX file, ask a question about the data, and receive a streamed assistant response that can inspect the full dataset, generate a multi-file React artifact, and render that artifact live in Sandpack.
 
 Key working features:
 
@@ -99,7 +97,7 @@ Open `http://localhost:3000`.
 ## Usage
 
 1. Open `http://localhost:3000` and click **Get started**.
-2. Authenticate through the WorkOS flow and land in `/chat`.
+2. Authenticate through the WorkOS flow with Google OAUTH and land in `/chat`.
 3. Upload a CSV/XLS/XLSX file from the composer. If you have not started a conversation yet, the app creates one first.
 4. Ask a question or request an artifact. Clear requests that mention the relevant columns work best, but open-ended prompts like “analyze this and show me something useful” also map cleanly onto the current tool chain.
 5. Watch the assistant stream its response. You may see live activity, collapsible analysis output, dataset-inspection summaries, and an artifact card.
@@ -147,7 +145,7 @@ Messages are stored as both extracted text and full AI SDK `parts` JSON. That ma
 - File storage: original uploads and normalized dataset envelopes are stored in Vercel Blob instead of the database. That keeps large payloads out of Postgres and lets generated artifacts fetch the same normalized dataset directly.
 - LLM provider: all model calls go through the Vercel AI SDK with the OpenAI provider. That gives the app one streaming/runtime abstraction while still allowing different models for orchestration, analysis, codegen, and titling.
 - Streaming format: the app uses typed UI-message streams instead of custom SSE text parsing. That makes tool invocations, uploaded-file references, activity updates, and persisted replays consistent.
-- Auth: WorkOS AuthKit handles redirects, callback flow, and client/server auth hydration. The tradeoff is that env configuration lives implicitly in the auth SDK rather than in a centralized app config module.
+- Auth: WorkOS AuthKit handles redirects, callback flow, and client/server auth hydration.
 
 ## AI Tools Used
 
@@ -195,7 +193,4 @@ The AI tools that are verifiable from the product code itself are:
 - Spreadsheet preview only uses the first worksheet and only returns an excerpt, not a full workbook view.
 - There are no automated tests or smoke scripts for the upload → chat → artifact → retry path.
 - You cannot see the code of the artifacts streamed as its generated.
-
-## License
-
-No `LICENSE` file is present in the repository.
+- On safari web browser the artifact panel has a adjustable/sizable limit.
