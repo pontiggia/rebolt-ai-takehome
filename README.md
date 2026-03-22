@@ -4,6 +4,8 @@
 
 <!-- Add a screenshot or short GIF of the chat workspace and artifact pane here. -->
 
+> Note: the file `prompts.jsonl` contains the majority of the prompts used.
+
 ## Overview
 
 This project is a Next.js 16 spreadsheet chat app with a browser-side artifact runtime. Users authenticate, upload a CSV/XLS/XLSX file, ask a question about the data, and receive a streamed assistant response that can inspect the full dataset, generate a multi-file React artifact, and render that artifact live in Sandpack.
