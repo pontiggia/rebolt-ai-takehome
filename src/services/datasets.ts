@@ -23,7 +23,7 @@ export async function storeDatasetForUpload(
   return datasetUrl;
 }
 
-export async function ensureDatasetForFile(
+async function ensureDatasetForFile(
   file: DatasetBackfillFile,
 ): Promise<{ envelope: DatasetEnvelope; datasetUrl: string }> {
   const cached = getCachedDataset(file.id);

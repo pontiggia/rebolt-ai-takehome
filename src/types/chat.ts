@@ -1,7 +1,6 @@
 import type { AppUIMessage } from '@/types/ai';
 
-export type PersistedChatMessage = AppUIMessage;
-export type PersistedChatParts = PersistedChatMessage['parts'];
+export type PersistedChatParts = AppUIMessage['parts'];
 
 export const MAX_ARTIFACT_AUTO_RETRIES = 3;
 export const ARTIFACT_DATASET_ERROR_MARKER = '[rebolt-dataset]';

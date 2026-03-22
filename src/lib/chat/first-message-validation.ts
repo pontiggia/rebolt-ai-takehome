@@ -2,9 +2,9 @@ import type { ValidationError } from '@/types/errors';
 import type { Result } from '@/types/result';
 import { err, ok } from '@/types/result';
 
-export const FIRST_MESSAGE_MIN_LENGTH = 1;
-export const FIRST_MESSAGE_MAX_LENGTH = 4000;
-export const FIRST_MESSAGE_VALIDATION_MESSAGE = `Message must be between ${FIRST_MESSAGE_MIN_LENGTH} and ${FIRST_MESSAGE_MAX_LENGTH} characters`;
+const FIRST_MESSAGE_MIN_LENGTH = 1;
+const FIRST_MESSAGE_MAX_LENGTH = 4000;
+const FIRST_MESSAGE_VALIDATION_MESSAGE = `Message must be between ${FIRST_MESSAGE_MIN_LENGTH} and ${FIRST_MESSAGE_MAX_LENGTH} characters`;
 
 export function validateFirstMessageText(text: string): Result<string, ValidationError> {
   const normalizedText = text.trim();

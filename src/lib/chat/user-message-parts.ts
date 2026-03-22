@@ -34,7 +34,7 @@ export function buildUserMessageParts(text: string, uploadedFiles: readonly Uplo
   ];
 }
 
-export function isUploadedFileDataPart(part: AppUIMessagePart): part is UploadedFileDataPart {
+function isUploadedFileDataPart(part: AppUIMessagePart): part is UploadedFileDataPart {
   return part.type === 'data-uploaded-file';
 }
 

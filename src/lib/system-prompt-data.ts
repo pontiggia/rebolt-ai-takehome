@@ -129,7 +129,7 @@ export function buildDatasetRuntimeInstruction(dataContext: DatasetPromptContext
 - If you build a raw table for a large dataset, paginate the rendered rows client-side so the DOM stays manageable.`;
 }
 
-export function buildReboltAIRuntimeInstruction(useReboltAI: boolean): string {
+export function buildOpenAIProxyRuntimeInstruction(useReboltAI: boolean): string {
   if (!useReboltAI) {
     return '- No Rebolt OpenAI proxy runtime is attached for this artifact. Keep the project fully browser-only and do not call any backend or model endpoint.';
   }

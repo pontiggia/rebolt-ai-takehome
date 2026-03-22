@@ -5,7 +5,7 @@ import {
   buildAnalysisDataContext,
   buildCodegenDataContext,
   buildDatasetRuntimeInstruction,
-  buildReboltAIRuntimeInstruction,
+  buildOpenAIProxyRuntimeInstruction,
   buildRetrySchemaSummary,
   createDatasetPromptContext,
   formatJson,
@@ -61,7 +61,7 @@ ${CODEGEN_OUTPUT_FORMAT_SECTION}
 
 - \`/src/App.tsx\` is required. It MUST have \`export default\` — this is the entry point.
 ${buildDatasetRuntimeInstruction(dataContext)}
-${buildReboltAIRuntimeInstruction(options.useReboltAI)}
+${buildOpenAIProxyRuntimeInstruction(options.useReboltAI)}
 - All file paths MUST start with \`/src/\`. Do NOT create \`/index.tsx\` — provided by the environment.
 - Use relative imports between files.
 - Runtime versions are pinned to ${ARTIFACT_RUNTIME_VERSION_SUMMARY}.

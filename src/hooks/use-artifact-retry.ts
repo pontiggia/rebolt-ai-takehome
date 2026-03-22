@@ -289,11 +289,6 @@ export function useArtifactRetry({
     });
   }, [activeArtifactRef, chatStatus, requestRetry, runtimeState]);
 
-  const resetRuntimeState = useCallback(() => {
-    lastRuntimeErrorSignatureRef.current = null;
-    setRuntimeState(IDLE_RUNTIME_STATE);
-  }, []);
-
   return {
     runtimeState,
     startValidation,
@@ -302,6 +297,5 @@ export function useArtifactRetry({
     handleRequestError,
     handleRequestFinish,
     resetForNextArtifact,
-    resetRuntimeState,
   } as const;
 }

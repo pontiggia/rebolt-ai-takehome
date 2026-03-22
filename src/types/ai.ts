@@ -4,10 +4,7 @@ export const AI_MODELS = {
   analysis: 'gpt-4.1',
   codegen: 'gpt-5.4-mini',
   title: 'gpt-5.4-nano',
-  artifactInference: 'gpt-4.1',
 } as const;
-
-export type AIModelKey = keyof typeof AI_MODELS;
 
 export interface AnalyzeDataToolInput {
   readonly task: string;

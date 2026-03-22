@@ -11,7 +11,7 @@ import {
   type SerializedOpenAIProxyResponse,
 } from './rebolt-openai-proxy-protocol';
 
-export interface RelayArtifactOpenAIProxyRequestOptions {
+interface RelayArtifactOpenAIProxyRequestOptions {
   readonly data: unknown;
   readonly origin: string;
   readonly source: unknown;
@@ -19,6 +19,10 @@ export interface RelayArtifactOpenAIProxyRequestOptions {
   readonly artifact: ArtifactOpenAIProxyContext | null;
   readonly fetchImpl?: typeof fetch;
   readonly endpoint?: string;
+}
+
+function buildArtifactResponsesEndpoint(conversationId: string): string {
+  return `/api/conversations/${encodeURIComponent(conversationId)}/artifacts/responses`;
 }
 
 function postBridgeMessage(source: PostMessageSourceLike, origin: string, message: unknown): void {
@@ -76,7 +80,7 @@ export async function relayArtifactOpenAIProxyRequest({
   conversationId,
   artifact,
   fetchImpl = fetch,
-  endpoint = '/api/artifacts/openai-proxy',
+  endpoint,
 }: RelayArtifactOpenAIProxyRequestOptions): Promise<boolean> {
   if (!isArtifactOpenAIProxyRequestMessage(data)) {
     const requestId = getRequestId(data);
@@ -116,11 +120,10 @@ export async function relayArtifactOpenAIProxyRequest({
   }
 
   try {
-    const response = await fetchImpl(endpoint, {
+    const response = await fetchImpl(endpoint ?? buildArtifactResponsesEndpoint(conversationId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        conversationId,
         fileId: artifact.fileId,
         ...payload,
       }),

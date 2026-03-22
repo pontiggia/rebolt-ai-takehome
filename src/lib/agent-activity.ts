@@ -16,7 +16,7 @@ import type {
   ReadDatasetRowsToolOutput,
 } from '@/types/ai';
 
-export const AGENT_ACTIVITY_PART_TYPE = 'data-agent-activity';
+const AGENT_ACTIVITY_PART_TYPE = 'data-agent-activity';
 
 function formatColumnSummary(columns: readonly string[], maxColumns = 3): string | null {
   if (columns.length === 0) {
@@ -49,15 +49,15 @@ export function isAgentActivityDataPart(part: AppUIMessagePart): part is AgentAc
   return part.type === AGENT_ACTIVITY_PART_TYPE;
 }
 
-export function isAnalyzeDataToolInvocation(part: AppUIMessagePart): part is AnalyzeDataToolInvocation {
+function isAnalyzeDataToolInvocation(part: AppUIMessagePart): part is AnalyzeDataToolInvocation {
   return part.type === 'tool-analyzeData';
 }
 
-export function isReadDatasetRowsToolInvocation(part: AppUIMessagePart): part is ReadDatasetRowsToolInvocation {
+function isReadDatasetRowsToolInvocation(part: AppUIMessagePart): part is ReadDatasetRowsToolInvocation {
   return part.type === 'tool-readDatasetRows';
 }
 
-export function isGenerateArtifactToolInvocation(part: AppUIMessagePart): part is GenerateArtifactToolInvocation {
+function isGenerateArtifactToolInvocation(part: AppUIMessagePart): part is GenerateArtifactToolInvocation {
   return part.type === 'tool-generateArtifact';
 }
 
@@ -106,13 +106,13 @@ export function getStepLabel(stepNumber: number): string {
   return `Step ${stepNumber}`;
 }
 
-export function describeAnalyzeDataInput(input: AnalyzeDataToolInput): string {
+function describeAnalyzeDataInput(input: AnalyzeDataToolInput): string {
   const task = input.task.trim();
   const columnSummary = formatColumnSummary(input.columns);
   return columnSummary ? `${task} • ${columnSummary}` : task;
 }
 
-export function describeReadDatasetRowsInput(input: ReadDatasetRowsToolInput): string {
+function describeReadDatasetRowsInput(input: ReadDatasetRowsToolInput): string {
   const startRow = input.offset + 1;
   const endRow = input.offset + input.limit;
   const columnSummary = formatColumnSummary(input.columns ?? []);
@@ -131,7 +131,7 @@ export function describeReadDatasetRowsOutput(output: ReadDatasetRowsToolOutput)
   return columnSummary ? `${rangeLabel} • ${columnSummary}${moreLabel}` : `${rangeLabel}${moreLabel}`;
 }
 
-export function describeGenerateArtifactInput(input: ArtifactToolInput): string {
+function describeGenerateArtifactInput(input: ArtifactToolInput): string {
   return input.title.trim() || 'Untitled artifact';
 }
 

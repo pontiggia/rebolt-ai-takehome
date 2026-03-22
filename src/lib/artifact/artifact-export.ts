@@ -8,8 +8,7 @@ import {
   slugifyArtifactTitle,
   stripLeadingSlash,
 } from '@/lib/artifact/artifact-export-utils';
-import { DATASET_HELPER_PATH, REBOLT_AI_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH } from '@/lib/tools/constants';
-import { buildReboltAIExportStub } from '@/lib/tools/rebolt-ai-runtime-helper';
+import { DATASET_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH } from '@/lib/tools/constants';
 import { buildReboltOpenAIProxyExportStub } from '@/lib/tools/rebolt-openai-proxy-runtime-helper';
 import type { ActiveArtifact } from '@/types/chat';
 
@@ -32,10 +31,6 @@ async function buildExportFiles(artifact: ActiveArtifact): Promise<Record<string
     sourceFiles['/public/rebolt-dataset.json'] = await fetchDatasetEnvelope(datasetUrl);
   }
 
-  if (sourceFiles[REBOLT_AI_HELPER_PATH]) {
-    sourceFiles[REBOLT_AI_HELPER_PATH] = buildReboltAIExportStub();
-  }
-
   if (sourceFiles[REBOLT_OPENAI_PROXY_PATH]) {
     sourceFiles[REBOLT_OPENAI_PROXY_PATH] = buildReboltOpenAIProxyExportStub();
   }
@@ -46,7 +41,6 @@ async function buildExportFiles(artifact: ActiveArtifact): Promise<Record<string
       title: artifactTitle,
       titleSlug: artifactTitleSlug,
       includesDataset: Boolean(datasetUrl),
-      includesLegacyReboltAI: Boolean(sourceFiles[REBOLT_AI_HELPER_PATH]),
       includesOpenAIProxy: Boolean(sourceFiles[REBOLT_OPENAI_PROXY_PATH]),
     }),
   };

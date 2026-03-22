@@ -167,7 +167,7 @@ async function proxyOpenAIRequest(request: Request): Promise<Response> {
   });
 }
 
-export function installReboltOpenAIProxy(): void {
+function installReboltOpenAIProxy(): void {
   if (typeof window === 'undefined' || window.__REBOLT_OPENAI_PROXY_INSTALLED__) {
     return;
   }
@@ -201,7 +201,7 @@ declare global {
   }
 }
 
-export function installReboltOpenAIProxy(): void {
+function installReboltOpenAIProxy(): void {
   if (typeof window === 'undefined' || window.__REBOLT_OPENAI_PROXY_STUB_INSTALLED__) {
     return;
   }

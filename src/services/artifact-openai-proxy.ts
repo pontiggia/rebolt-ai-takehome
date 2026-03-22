@@ -10,7 +10,7 @@ const AUTH_HEADER_PATTERN = /^(authorization|x-api-key|api-key|openai-organizati
 const ALLOWED_HEADER_NAMES = new Set(['accept', 'content-type']);
 const OPENAI_MODEL_ID = 'gpt-4.1';
 
-export class ArtifactOpenAIProxyValidationError extends Error {
+class ArtifactOpenAIProxyValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ArtifactOpenAIProxyValidationError';

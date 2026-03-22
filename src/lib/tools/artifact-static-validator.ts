@@ -1,6 +1,6 @@
 import { OPENAI_RESPONSES_API_URL } from '../artifact/rebolt-openai-proxy-protocol';
 
-export const ARTIFACT_STATIC_VALIDATION_ERROR_MARKER = '[artifact-static-validation]';
+const ARTIFACT_STATIC_VALIDATION_ERROR_MARKER = '[artifact-static-validation]';
 
 const LOCALHOST_PATTERN = /\blocalhost\b|\b127\.0\.0\.1\b|\b0\.0\.0\.0\b/i;
 const PRIVATE_IP_PATTERN =
@@ -13,7 +13,7 @@ const SERVER_ENV_PATTERN = /\b(?:process\.env|import\.meta\.env)\b/;
 const SERVER_ONLY_IMPORT_PATTERN =
   /\b(?:import\s+['"]server-only['"]|from\s+['"]server-only['"]|from\s+['"]node:[^'"]+['"]|from\s+['"](?:fs|path|http|https|net|tls|child_process|worker_threads|os|crypto)['"]|require\(['"](?:fs|path|http|https|net|tls|child_process|worker_threads|os|crypto)['"]\))/;
 const DIRECT_BACKEND_PATTERN =
-  /\bfetch\s*\(\s*['"`](?:\/(?:api\/)?predict\b|\/api\/artifacts\/infer\b|\/api\/artifacts\/predict\b|\/api\/artifacts\/openai-proxy\b)/i;
+  /\bfetch\s*\(\s*['"`](?:\/(?:api\/)?predict\b|\/api\/artifacts\/infer\b|\/api\/artifacts\/predict\b|\/api\/artifacts\/openai-proxy\b|\/api\/conversations\/[^'"`\s]+\/artifacts\/responses\b)/i;
 const LEGACY_REBOLT_AI_IMPORT_PATTERN = /['"]\.\/rebolt-ai['"]/;
 const LEGACY_REBOLT_PREDICT_IMPORT_PATTERN = /['"]\.\/rebolt-predict['"]/;
 const LEGACY_REBOLT_AI_CALL_PATTERN = /\bcallReboltAI(?:Json|Text)?(?:<[^>]+>)?\s*\(/;

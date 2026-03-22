@@ -4,8 +4,7 @@ import { useMemo, type ReactNode } from 'react';
 import { SandpackProvider } from '@codesandbox/sandpack-react';
 import { ArtifactSandpackRuntimeBridge } from '@/components/artifact/artifact-sandpack-runtime-bridge';
 import { ARTIFACT_SANDBOX_SETUP, ARTIFACT_TAILWIND_CDN_URL } from '@/lib/artifact-runtime';
-import { DATASET_HELPER_PATH, REBOLT_AI_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH } from '@/lib/tools/constants';
-import { buildReboltAIRuntimeHelper } from '@/lib/tools/rebolt-ai-runtime-helper';
+import { DATASET_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH } from '@/lib/tools/constants';
 import { buildReboltOpenAIProxyRuntimeHelper } from '@/lib/tools/rebolt-openai-proxy-runtime-helper';
 import { cn } from '@/lib/utils';
 import type { ArtifactRuntimeMode, ArtifactRuntimeSurfaceProps } from '@/types/components';
@@ -32,7 +31,7 @@ root.render(<App />);
 `;
 }
 
-const HIDDEN_FILES = new Set(['/index.tsx', DATASET_HELPER_PATH, REBOLT_AI_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH]);
+const HIDDEN_FILES = new Set(['/index.tsx', DATASET_HELPER_PATH, REBOLT_OPENAI_PROXY_PATH]);
 
 export function ArtifactSandpackHost({
   artifactKey,
@@ -42,17 +41,11 @@ export function ArtifactSandpackHost({
   children,
   className,
 }: ArtifactSandpackHostProps) {
-  const runtimeReboltAIHelper = useMemo(() => buildReboltAIRuntimeHelper(), []);
   const runtimeOpenAIProxyHelper = useMemo(() => buildReboltOpenAIProxyRuntimeHelper(), []);
   const sandpackFiles = useMemo(() => {
     const result: Record<string, string | { code: string; hidden?: boolean }> = {};
 
     for (const [path, content] of Object.entries(files)) {
-      if (path === REBOLT_AI_HELPER_PATH) {
-        result[path] = { code: runtimeReboltAIHelper, hidden: true };
-        continue;
-      }
-
       if (path === REBOLT_OPENAI_PROXY_PATH) {
         result[path] = { code: runtimeOpenAIProxyHelper, hidden: true };
         continue;
@@ -63,7 +56,7 @@ export function ArtifactSandpackHost({
 
     result['/index.tsx'] = { code: buildEntryFile(runtimeMode), hidden: true };
     return result;
-  }, [files, runtimeMode, runtimeOpenAIProxyHelper, runtimeReboltAIHelper]);
+  }, [files, runtimeMode, runtimeOpenAIProxyHelper]);
 
   const options = useMemo(
     () => ({

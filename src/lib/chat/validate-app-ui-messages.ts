@@ -8,7 +8,7 @@ import type { AppUIMessage } from '@/types/ai';
 
 const appToolNameSchema = z.enum(['analyzeData', 'readDatasetRows', 'generateArtifact']);
 
-export const agentActivityDataSchema = z.object({
+const agentActivityDataSchema = z.object({
   kind: z.enum(['step', 'tool', 'tool-internal']),
   status: z.enum(['running', 'completed', 'error']),
   label: z.string().min(1),
@@ -18,7 +18,7 @@ export const agentActivityDataSchema = z.object({
   toolCallId: z.string().min(1).optional(),
 });
 
-export const uploadedFileDataSchema = z.object({
+const uploadedFileDataSchema = z.object({
   fileId: z.string().uuid(),
   fileName: z.string().min(1),
   fileType: z.string().min(1),

@@ -1,3 +1,4 @@
+import { z } from 'zod/v4';
 import { invalidRequestError, parseJsonBody, withAuthHandler } from '@/lib/api';
 import { artifactOpenAIProxyBodySchema } from '@/lib/artifact/rebolt-openai-proxy-protocol';
 import { getConversation, getOwnedFileRecord } from '@/services/conversations';
@@ -7,13 +8,23 @@ import {
 } from '@/services/artifact-openai-proxy';
 import { errorResponse } from '@/types/errors';
 
-export const POST = withAuthHandler(async (req, { user }) => {
+const paramsSchema = z.object({
+  conversationId: z.string().uuid(),
+});
+
+export const POST = withAuthHandler<{ params: Promise<{ conversationId: string }> }>(async (req, { user, params }) => {
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) {
+    return errorResponse(invalidRequestError('Invalid conversation id'));
+  }
+
   const parsedBody = await parseJsonBody(req, artifactOpenAIProxyBodySchema);
   if (!parsedBody.success) {
     return errorResponse(parsedBody.error);
   }
 
-  const { conversationId, fileId, ...proxyRequest } = parsedBody.data;
+  const { conversationId } = parsedParams.data;
+  const { fileId, ...proxyRequest } = parsedBody.data;
 
   const [conversationResult, fileResult] = await Promise.all([
     getConversation(conversationId, user.id),

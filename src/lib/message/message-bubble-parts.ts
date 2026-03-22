@@ -9,7 +9,7 @@ import type {
 
 export type MessageBubblePart = AppUIMessage['parts'][number];
 
-export function isTerminalToolPart(
+function isTerminalToolPart(
   part: MessageBubblePart,
 ): part is Extract<AppToolInvocation, { state: 'output-available' | 'output-error' }> {
   return isAppToolInvocation(part) && (part.state === 'output-available' || part.state === 'output-error');

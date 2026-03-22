@@ -1,6 +1,5 @@
 import { useEffect, useEffectEvent } from 'react';
 import { useSandpack } from '@codesandbox/sandpack-react';
-import { ARTIFACT_AI_VALIDATION_ERROR_MARKER } from '@/lib/artifact/rebolt-ai-protocol';
 import { REBOLT_OPENAI_PROXY_VALIDATION_ERROR_MARKER } from '@/lib/artifact/rebolt-openai-proxy-protocol';
 import type { ArtifactRuntimeSurfaceProps } from '@/types/components';
 
@@ -27,11 +26,7 @@ export function ArtifactSandpackRuntimeBridge({
   const emitRuntimeEvent = useEffectEvent(onRuntimeEvent);
 
   const shouldIgnoreValidationError = useEffectEvent((message: string) => {
-    if (
-      runtimeMode !== 'validation' ||
-      (!message.startsWith(ARTIFACT_AI_VALIDATION_ERROR_MARKER) &&
-        !message.startsWith(REBOLT_OPENAI_PROXY_VALIDATION_ERROR_MARKER))
-    ) {
+    if (runtimeMode !== 'validation' || !message.startsWith(REBOLT_OPENAI_PROXY_VALIDATION_ERROR_MARKER)) {
       return false;
     }
 

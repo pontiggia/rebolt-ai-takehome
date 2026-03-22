@@ -113,14 +113,10 @@ export default defineConfig({
 function buildReadme(
   title: string,
   includesDataset: boolean,
-  includesLegacyReboltAI: boolean,
   includesOpenAIProxy: boolean,
 ): string {
   const datasetLine = includesDataset
     ? 'This export includes the full normalized dataset at `public/rebolt-dataset.json`.\n\n'
-    : '';
-  const legacyReboltAILine = includesLegacyReboltAI
-    ? 'This export includes a stubbed `src/rebolt-ai.ts` helper. Live Rebolt AI only works inside the Rebolt app, so replace that helper with your own backend integration if you want live inference outside Rebolt.\n\n'
     : '';
   const openAIProxyLine = includesOpenAIProxy
     ? 'This export includes a stubbed `src/rebolt-openai-proxy.ts` runtime shim. OpenAI auth is only injected inside the Rebolt app, so replace that shim with your own backend or key-management layer if you want live Responses API calls outside Rebolt.\n\n'
@@ -130,7 +126,7 @@ function buildReadme(
 
 Exported from the Rebolt artifact panel.
 
-${datasetLine}${legacyReboltAILine}${openAIProxyLine}## Run locally
+${datasetLine}${openAIProxyLine}## Run locally
 
 \`\`\`bash
 pnpm install
@@ -143,7 +139,6 @@ interface BuildArtifactScaffoldOptions {
   readonly title: string;
   readonly titleSlug: string;
   readonly includesDataset: boolean;
-  readonly includesLegacyReboltAI: boolean;
   readonly includesOpenAIProxy: boolean;
 }
 
@@ -151,7 +146,6 @@ export function buildArtifactScaffold({
   title,
   titleSlug,
   includesDataset,
-  includesLegacyReboltAI,
   includesOpenAIProxy,
 }: BuildArtifactScaffoldOptions): Record<string, string> {
   return {
@@ -160,6 +154,6 @@ export function buildArtifactScaffold({
     '/package.json': buildPackageJson(titleSlug),
     '/tsconfig.json': buildTsConfig(),
     '/vite.config.ts': buildViteConfig(),
-    '/README.md': buildReadme(title, includesDataset, includesLegacyReboltAI, includesOpenAIProxy),
+    '/README.md': buildReadme(title, includesDataset, includesOpenAIProxy),
   };
 }

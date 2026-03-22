@@ -52,7 +52,7 @@ export function normalizeErrorMessage(value: unknown, fallback: string): string 
 }
 
 function looksLikeUnsupportedArtifactBackendError(error: string): boolean {
-  return /unexpected token '<'|failed to fetch|non-json response|\/predict\b|\/api\/artifacts\/predict\b|\/api\/artifacts\/openai-proxy\b|localhost|127\.0\.0\.1|api\.anthropic\.com|api\.openai\.com|openrouter\.ai/i.test(
+  return /unexpected token '<'|failed to fetch|non-json response|\/predict\b|\/api\/artifacts\/predict\b|\/api\/artifacts\/openai-proxy\b|\/api\/conversations\/[^/\s]+\/artifacts\/responses\b|localhost|127\.0\.0\.1|api\.anthropic\.com|api\.openai\.com|openrouter\.ai/i.test(
     error.toLowerCase(),
   );
 }

@@ -59,7 +59,6 @@ export function useArtifact({
     handleRequestError,
     handleRequestFinish,
     resetForNextArtifact,
-    resetRuntimeState,
   } = useArtifactRetry({
     activeArtifactRef,
     messages,
@@ -125,6 +124,5 @@ export function useArtifact({
     handleRuntimeEvent,
     handleRequestError,
     handleRequestFinish,
-    resetRuntimeState,
   } as const;
 }

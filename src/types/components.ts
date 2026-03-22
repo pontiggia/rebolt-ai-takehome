@@ -23,11 +23,3 @@ export interface FileUploadBadgeProps {
   readonly fileName: string;
   readonly fileType: string;
 }
-
-export interface SidebarItemProps {
-  readonly id: string;
-  readonly title: string;
-  readonly isActive: boolean;
-  readonly onSelect: (id: string) => void;
-  readonly onDelete: (id: string) => void;
-}

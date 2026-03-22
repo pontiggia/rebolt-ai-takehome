@@ -5,13 +5,9 @@ import {
   OPENAI_RESPONSES_API_URL,
   REBOLT_OPENAI_PROXY_REQUEST_MESSAGE_TYPE,
   REBOLT_OPENAI_PROXY_RESPONSE_MESSAGE_TYPE,
-  type ArtifactOpenAIProxyResponseMessage,
 } from '../src/lib/artifact/rebolt-openai-proxy-protocol';
 import { relayArtifactOpenAIProxyRequest } from '../src/lib/artifact/rebolt-openai-proxy-bridge';
-import {
-  ARTIFACT_STATIC_VALIDATION_ERROR_MARKER,
-  lintArtifactFiles,
-} from '../src/lib/tools/artifact-static-validator';
+import { lintArtifactFiles } from '../src/lib/tools/artifact-static-validator';
 import { REBOLT_OPENAI_PROXY_PATH } from '../src/lib/tools/constants';
 import {
   buildReboltOpenAIProxyExportStub,
@@ -26,6 +22,18 @@ const CREATE_GENERATE_ARTIFACT_TOOL_PATH = new URL('../src/lib/tools/create-gene
 const TOOLS_PATH = new URL('../src/lib/tools.ts', import.meta.url);
 const VALIDATE_UI_MESSAGES_PATH = new URL('../src/lib/chat/validate-app-ui-messages.ts', import.meta.url);
 const ARTIFACT_OPENAI_PROXY_SERVICE_PATH = new URL('../src/services/artifact-openai-proxy.ts', import.meta.url);
+const ARTIFACT_STATIC_VALIDATION_ERROR_MARKER = '[artifact-static-validation]';
+
+interface OpenAIProxyResponseMessage {
+  readonly type: string;
+  readonly requestId: string;
+  readonly ok: boolean;
+  readonly response?: {
+    readonly status: number;
+    readonly body: string;
+  };
+  readonly error?: string;
+}
 
 type LintOptions = Parameters<typeof lintArtifactFiles>[1];
 
@@ -344,8 +352,10 @@ export default function App() {
     assert.ok(systemPromptDataSource.includes('model: "gpt-4.1"'));
     assert.ok(systemPromptSectionsSource.includes('useReboltAI: true'));
     assert.ok(createGenerateArtifactToolSource.includes('useReboltAI'));
+    assert.ok(systemPromptSource.includes('buildOpenAIProxyRuntimeInstruction'));
 
     assert.ok(!systemPromptSource.includes('analyzePredictionSchema'));
+    assert.ok(!systemPromptSource.includes('buildReboltAIRuntimeInstruction'));
     assert.ok(!systemPromptSource.includes('./rebolt-predict'));
     assert.ok(!createGenerateArtifactToolSource.includes('useReboltPrediction'));
     assert.ok(!createGenerateArtifactToolSource.includes('predictionSpec'));
@@ -368,6 +378,7 @@ export default function App() {
   await runTest('relayArtifactOpenAIProxyRequest round-trips proxy responses through postMessage', async () => {
     const { messages, source } = createSourceRecorder();
     let fetchBody: Record<string, unknown> | null = null;
+    let fetchUrl = '';
 
     const handled = await relayArtifactOpenAIProxyRequest({
       data: {
@@ -389,7 +400,8 @@ export default function App() {
         fileId: '94a2b9fc-7d0a-4994-9d9b-76d684d2eff1',
         usesReboltAI: true,
       },
-      fetchImpl: async (_url, init) => {
+      fetchImpl: async (url, init) => {
+        fetchUrl = String(url);
         fetchBody = JSON.parse(String(init?.body));
         return new Response(JSON.stringify({ output_text: 'ok' }), {
           status: 200,
@@ -399,8 +411,8 @@ export default function App() {
     });
 
     assert.equal(handled, true);
+    assert.equal(fetchUrl, '/api/conversations/4aa6c03d-090d-4fe3-a5f1-a403e43f5b4c/artifacts/responses');
     assert.deepEqual(fetchBody, {
-      conversationId: '4aa6c03d-090d-4fe3-a5f1-a403e43f5b4c',
       fileId: '94a2b9fc-7d0a-4994-9d9b-76d684d2eff1',
       url: OPENAI_RESPONSES_API_URL,
       method: 'POST',
@@ -412,7 +424,7 @@ export default function App() {
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0]?.targetOrigin, 'https://rebolt.app');
-    const response = messages[0]?.message as ArtifactOpenAIProxyResponseMessage;
+    const response = messages[0]?.message as OpenAIProxyResponseMessage;
     assert.equal(response.type, REBOLT_OPENAI_PROXY_RESPONSE_MESSAGE_TYPE);
     assert.equal(response.requestId, 'request-1');
     assert.equal(response.ok, true);
@@ -444,7 +456,7 @@ export default function App() {
     });
 
     assert.equal(handled, true);
-    const response = messages[0]?.message as ArtifactOpenAIProxyResponseMessage;
+    const response = messages[0]?.message as OpenAIProxyResponseMessage;
     assert.equal(response.ok, false);
     assert.match(response.error ?? '', /does not have Rebolt AI enabled/i);
   });

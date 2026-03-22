@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 import type { CurrentUser } from '@/lib/auth';
 import type { ValidationError } from '@/types/errors';
 
-export interface AuthContext {
+interface AuthContext {
   readonly user: CurrentUser;
 }
 
