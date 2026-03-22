@@ -62,11 +62,7 @@ export function isGenerateArtifactToolInvocation(part: AppUIMessagePart): part i
 }
 
 export function isAppToolInvocation(part: AppUIMessagePart): part is AppToolInvocation {
-  return (
-    isAnalyzeDataToolInvocation(part) ||
-    isReadDatasetRowsToolInvocation(part) ||
-    isGenerateArtifactToolInvocation(part)
-  );
+  return isAnalyzeDataToolInvocation(part) || isReadDatasetRowsToolInvocation(part) || isGenerateArtifactToolInvocation(part);
 }
 
 export function isRunningToolInvocation(part: AppToolInvocation): boolean {

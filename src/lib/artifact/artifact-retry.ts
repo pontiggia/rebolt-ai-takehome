@@ -1,4 +1,8 @@
 import type { ChatOnFinishCallback } from 'ai';
+import {
+  isArtifactStaticValidationError,
+  stripArtifactStaticValidationError,
+} from '@/lib/tools/artifact-static-validator';
 import type { AppUIMessage } from '@/types/ai';
 import type {
   ActiveArtifact,
@@ -25,6 +29,9 @@ export interface PendingRetry {
   readonly baselineArtifactKey: string | null;
 }
 
+const UNSUPPORTED_BACKEND_ERROR =
+  'Browser-only artifact runtime detected an unsupported backend call. Do not use localhost, private network hosts, invented backend routes, or non-OpenAI provider URLs. If the artifact needs live model output, call POST https://api.openai.com/v1/responses with model "gpt-4.1" and let Rebolt proxy it automatically. Do not send Authorization or API-key headers from artifact code.';
+
 export function normalizeErrorMessage(value: unknown, fallback: string): string {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -42,6 +49,24 @@ export function normalizeErrorMessage(value: unknown, fallback: string): string 
   }
 
   return fallback;
+}
+
+function looksLikeUnsupportedArtifactBackendError(error: string): boolean {
+  return /unexpected token '<'|failed to fetch|non-json response|\/predict\b|\/api\/artifacts\/predict\b|\/api\/artifacts\/openai-proxy\b|localhost|127\.0\.0\.1|api\.anthropic\.com|api\.openai\.com|openrouter\.ai/i.test(
+    error.toLowerCase(),
+  );
+}
+
+export function shapeArtifactRetryError(error: string, source: ArtifactRetrySource): string {
+  if (source === 'artifact-static-validation' || isArtifactStaticValidationError(error)) {
+    return stripArtifactStaticValidationError(error);
+  }
+
+  if (looksLikeUnsupportedArtifactBackendError(error)) {
+    return UNSUPPORTED_BACKEND_ERROR;
+  }
+
+  return error;
 }
 
 export function isDatasetAccessError(error: string): boolean {
@@ -76,7 +101,7 @@ export function buildRuntimeRetryPayload(
     artifactTitle: artifact.title,
     artifactDescription: artifact.description,
     files: artifact.files,
-    error,
+    error: shapeArtifactRetryError(error, source),
     source,
   };
 }

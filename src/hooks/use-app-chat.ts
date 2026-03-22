@@ -8,6 +8,7 @@ import { buildUserMessageParts } from '@/lib/chat/user-message-parts';
 import type { AppUIMessage, UploadedFileData } from '@/types/ai';
 
 const PLACEHOLDER_ID = '__pending__';
+const CHAT_UPDATE_THROTTLE_MS = 50;
 
 interface UseAppChatOptions {
   readonly onError?: ChatOnErrorCallback;
@@ -29,6 +30,7 @@ export function useAppChat(
     onData: options.onData,
     onError: options.onError,
     onFinish: options.onFinish,
+    experimental_throttle: CHAT_UPDATE_THROTTLE_MS,
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: { conversationId: effectiveId },

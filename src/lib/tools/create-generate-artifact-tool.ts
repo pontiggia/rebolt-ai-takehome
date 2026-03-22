@@ -6,14 +6,16 @@ import { z } from 'zod/v4';
 import { getActivityReporter, getToolInternalActivityId } from '@/lib/agent-activity';
 import { buildCodegenPrompt } from '@/lib/system-prompt';
 import { injectDatasetRuntimeHelper } from '@/lib/tools/dataset-runtime-helper';
+import { lintArtifactFiles } from '@/lib/tools/artifact-static-validator';
 import { parseFilesFromResponse, validateArtifactFiles } from '@/lib/tools/artifact-file-parser';
+import { injectReboltOpenAIProxyRuntimeHelper } from '@/lib/tools/rebolt-openai-proxy-runtime-helper';
 import { AI_MODELS, type ArtifactToolInput } from '@/types/ai';
 import type { FileDataContext } from '@/types/file';
 
 export function createGenerateArtifactTool(fileData: FileDataContext | null) {
   return tool({
     description:
-      'Generate a self-contained React component that transforms the uploaded spreadsheet into an interactive UI. The generated artifact must load the FULL dataset at runtime via ./rebolt-dataset rather than hardcoding sampled rows.',
+      'Generate a self-contained React artifact that transforms the uploaded spreadsheet into an interactive UI. The generated artifact must load the FULL dataset at runtime via ./rebolt-dataset rather than hardcoding sampled rows. If live model inference is needed inside the artifact, set useReboltAI to true so the generated code can call the OpenAI Responses API directly while Rebolt proxies auth server-side.',
     inputSchema: z.object({
       title: z.string().describe('Artifact title shown in the UI header'),
       description: z
@@ -21,8 +23,17 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
         .describe(
           'Detailed description of what to build. Be specific about the type of UI, which columns to use, how to organize/group the data, what interactions to support, and the overall layout.',
         ),
+      useReboltAI: z
+        .boolean()
+        .default(false)
+        .describe(
+          'Set to true when the artifact needs live OpenAI-backed inference from inside the browser runtime, such as LLM calls, live forecasts, or other server-proxied model output.',
+        ),
     }),
-    execute: async ({ title, description }: ArtifactToolInput, { toolCallId, experimental_context }) => {
+    execute: async (
+      { title, description, useReboltAI = false }: ArtifactToolInput,
+      { toolCallId, experimental_context },
+    ) => {
       const reportActivity = getActivityReporter(experimental_context);
       const internalActivityId = getToolInternalActivityId(toolCallId);
 
@@ -41,8 +52,14 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
 
       const { text } = await generateText({
         model: openai(AI_MODELS.codegen),
-        system: buildCodegenPrompt(fileData),
-        prompt: `Title: "${title}"\n\nDescription: ${description}`,
+        system: buildCodegenPrompt(fileData, {
+          useReboltAI,
+        }),
+        prompt: `Title: "${title}"\n\nDescription: ${description}\n\nOpenAI proxy-backed live inference needed inside the artifact: ${
+          useReboltAI
+            ? 'Yes. Call POST https://api.openai.com/v1/responses with model "gpt-4.1". Do not add Authorization or API-key headers. Keep payloads compact and truthful.'
+            : 'No. Keep the artifact fully browser-only and avoid all provider or backend calls.'
+        }`,
         maxOutputTokens: 16384,
       });
 
@@ -95,13 +112,22 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
         activity: {
           kind: 'tool-internal',
           status: 'running',
-          label: 'Injecting dataset helper',
-          detail: fileData ? 'Preparing runtime data access' : title,
+          label: 'Injecting runtime helpers',
+          detail: useReboltAI
+            ? 'Preparing dataset access and OpenAI proxy runtime'
+            : fileData
+              ? 'Preparing runtime data access'
+              : title,
           toolName: 'generateArtifact',
           toolCallId,
         },
       });
-      const files = injectDatasetRuntimeHelper(validatedFiles, fileData);
+      lintArtifactFiles(validatedFiles, { useReboltAI });
+
+      const files = injectReboltOpenAIProxyRuntimeHelper(
+        injectDatasetRuntimeHelper(validatedFiles, fileData),
+        useReboltAI,
+      );
 
       reportActivity?.({
         id: internalActivityId,
@@ -109,7 +135,7 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
         activity: {
           kind: 'tool-internal',
           status: 'completed',
-          label: 'Injecting dataset helper',
+          label: 'Injecting runtime helpers',
           detail: 'Artifact runtime ready',
           toolName: 'generateArtifact',
           toolCallId,
@@ -120,6 +146,7 @@ export function createGenerateArtifactTool(fileData: FileDataContext | null) {
         title,
         fileId: fileData?.fileId ?? null,
         datasetUrl: fileData?.datasetUrl ?? null,
+        usesReboltAI: useReboltAI,
         files,
       };
     },

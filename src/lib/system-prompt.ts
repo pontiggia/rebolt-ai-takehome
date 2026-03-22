@@ -5,6 +5,7 @@ import {
   buildAnalysisDataContext,
   buildCodegenDataContext,
   buildDatasetRuntimeInstruction,
+  buildReboltAIRuntimeInstruction,
   buildRetrySchemaSummary,
   createDatasetPromptContext,
   formatJson,
@@ -14,9 +15,11 @@ import {
   ANALYSIS_DESCRIPTION_QUALITY_SECTION,
   ANALYSIS_ERROR_CORRECTION_SECTION,
   ANALYSIS_ROLE_SECTION,
+  ANALYSIS_RUNTIME_CONTRACT_SECTION,
   ANALYSIS_TOOL_CHAIN_SECTION,
   CODEGEN_DESIGN_SECTION,
   CODEGEN_OUTPUT_FORMAT_SECTION,
+  CODEGEN_RUNTIME_CONTRACT_SECTION,
 } from '@/lib/system-prompt-sections';
 import type { ArtifactRetryPayload } from '@/types/chat';
 import type { FileDataContext } from '@/types/file';
@@ -34,12 +37,17 @@ ${ANALYSIS_ROLE_SECTION}
 
 ${ANALYSIS_TOOL_CHAIN_SECTION}
 
+${ANALYSIS_RUNTIME_CONTRACT_SECTION}
+
 ${ANALYSIS_DESCRIPTION_QUALITY_SECTION}
 
 ${ANALYSIS_ERROR_CORRECTION_SECTION}`;
 }
 
-export function buildCodegenPrompt(fileData: FileDataContext | null): string {
+export function buildCodegenPrompt(
+  fileData: FileDataContext | null,
+  options: { readonly useReboltAI: boolean },
+): string {
   const dataContext = createDatasetPromptContext(fileData);
 
   return `You are a code generator that produces multi-file React projects. You can build ANY type of UI: charts, dashboards, data tables, trackers, calendars, forms, kanban boards, stat card layouts, or any combination.
@@ -53,6 +61,7 @@ ${CODEGEN_OUTPUT_FORMAT_SECTION}
 
 - \`/src/App.tsx\` is required. It MUST have \`export default\` — this is the entry point.
 ${buildDatasetRuntimeInstruction(dataContext)}
+${buildReboltAIRuntimeInstruction(options.useReboltAI)}
 - All file paths MUST start with \`/src/\`. Do NOT create \`/index.tsx\` — provided by the environment.
 - Use relative imports between files.
 - Runtime versions are pinned to ${ARTIFACT_RUNTIME_VERSION_SUMMARY}.
@@ -61,6 +70,8 @@ ${buildDatasetRuntimeInstruction(dataContext)}
 - For charts: always wrap in \`<ResponsiveContainer width="100%" height={...}>\`. Never set a fixed pixel width.
 - For tables: wrap in an \`overflow-x-auto\` container to prevent horizontal overflow.
 - Use TypeScript/TSX for all files.
+
+${CODEGEN_RUNTIME_CONTRACT_SECTION}
 
 ${CODEGEN_DESIGN_SECTION}`;
 }
@@ -98,6 +109,15 @@ ${buildRetrySchemaSummary(dataContext)}
 ## Exact Error
 ${retry.error}
 ${filesSection}
+
+## Artifact Runtime Contract
+- Artifacts run in browser-only Sandpack. There is no localhost backend, Python server, or private network service available.
+- Do not diagnose the fix as "start the backend" or "check CORS". Rewrite the artifact to fit the runtime instead.
+- Never use \`process.env\`, \`import.meta.env\`, API keys, direct provider endpoints, or server-only modules in artifact code.
+- If the artifact needs live server-side model access, call \`generateArtifact\` with \`useReboltAI: true\` and have the code call \`POST https://api.openai.com/v1/responses\`.
+- Rebolt proxies OpenAI Responses API calls server-side and injects auth automatically. Artifact code must never send \`Authorization\`, API-key, organization, or project headers itself.
+- OpenAI-backed artifacts must use only the Responses API with \`model: "gpt-4.1"\`. Do not call Anthropic, Gemini, OpenRouter, or any other provider endpoint.
+- ML/forecast artifacts must stay truthful. Do not claim XGBoost, training, MAE, RMSE, or R² unless those values were explicitly provided by the prompt or backend contract.
 
 Keep the original user request intact, stay aligned with the available schema, and fix the failure by calling generateArtifact again with corrected instructions. Do not answer with text-only unless generating an artifact is impossible.`;
 }

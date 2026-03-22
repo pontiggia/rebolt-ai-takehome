@@ -37,7 +37,11 @@ export function ChatViewArtifactPane({
   }
 
   return (
-    <div ref={containerRef} className="relative flex h-full flex-col border-l" style={{ width: panelWidth }}>
+    <div
+      ref={containerRef}
+      className="relative flex h-full min-w-0 shrink-0 flex-col overflow-hidden border-l"
+      style={{ width: panelWidth }}
+    >
       <ResizeHandle onResizeStart={onResizeStart} onResizeMove={onResizeMove} onResizeEnd={onResizeEnd} />
       <ArtifactPanel
         artifact={artifact}

@@ -4,6 +4,7 @@ export const AI_MODELS = {
   analysis: 'gpt-4.1',
   codegen: 'gpt-5.4-mini',
   title: 'gpt-5.4-nano',
+  artifactInference: 'gpt-4.1',
 } as const;
 
 export type AIModelKey = keyof typeof AI_MODELS;
@@ -38,12 +39,14 @@ export interface ReadDatasetRowsToolOutput {
 export interface ArtifactToolInput {
   readonly title: string;
   readonly description: string;
+  readonly useReboltAI?: boolean;
 }
 
 export interface ArtifactToolOutput {
   readonly title: string;
   readonly fileId: string | null;
   readonly datasetUrl?: string | null;
+  readonly usesReboltAI: boolean;
   readonly files: Readonly<Record<string, string>>;
 }
 

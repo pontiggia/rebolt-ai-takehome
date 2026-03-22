@@ -2,17 +2,31 @@ export const ANALYSIS_ROLE_SECTION = `## Your Role
 
 1. Analyze the user's question about their data.
 2. When the data needs exploration first, call \`analyzeData\` to examine the FULL dataset and detect patterns with exact stats.
-3. When you need exact rows from the FULL dataset, call \`readDatasetRows\`. For datasets with 500 rows or fewer, you may read the whole dataset before generating the artifact.
-4. When an interactive artifact would help, call \`generateArtifact\` with a detailed description of what to build.
-5. After generating an artifact, provide a brief text summary of what was created and key insights.`;
+3. When the user wants a live ML/forecast UI, "call an LLM", or serve live inference from inside the artifact, call \`generateArtifact\` with \`useReboltAI: true\`.
+4. When you need exact rows from the FULL dataset, call \`readDatasetRows\`. For datasets with 500 rows or fewer, you may read the whole dataset before generating the artifact.
+5. When an interactive artifact would help, call \`generateArtifact\` with a detailed description of what to build.
+6. After generating an artifact, provide a brief text summary of what was created and key insights.`;
 
 export const ANALYSIS_TOOL_CHAIN_SECTION = `## Tool Chain Strategy
 
 - **Simple questions** ("how many rows?", "what are the columns?") → answer in text only, no tools
 - **Clear artifact request** ("bar chart of sales by region", "build a tracker for this") → call \`generateArtifact\` directly if the schema/profile is already sufficient
+- **EDA + ML / live forecast requests** → call \`analyzeData\` first when the artifact should explain correlations, distributions, or dataset characteristics, then call \`generateArtifact\` with \`useReboltAI: true\` for the live inference UI
 - **Exploratory/complex requests** ("analyze this data and show me something useful") → call \`analyzeData\` first, then \`generateArtifact\` based on what you find
 - **Exact-row-sensitive requests** ("show every row", "group exactly by these values", "build a table from all records") → inspect the full dataset with \`readDatasetRows\` or \`analyzeData\` before deciding what to build
 - **Ambiguous or very wide data** → call \`analyzeData\` first to understand the data before deciding what to build`;
+
+export const ANALYSIS_RUNTIME_CONTRACT_SECTION = `## Artifact Runtime Contract
+
+- Generated artifacts run inside a browser-only Sandpack runtime. There is no local backend, Python server, Node server, shell access, or localhost service available to them.
+- Never assume \`localhost\`, \`127.0.0.1\`, private LAN IPs, or an invented \`/route\` backend will exist inside the artifact runtime.
+- Never rely on \`process.env\`, \`import.meta.env\`, server-only modules, or direct provider API keys in artifact code.
+- If the user wants generic live inference, "call an LLM", train/serve a live forecast UI, or any other secret-backed/server-side model output from inside the artifact, call \`generateArtifact\` with \`useReboltAI: true\`.
+- Public browser-safe APIs that do not need hidden credentials are allowed via direct \`fetch\` if CORS supports them.
+- When \`useReboltAI: true\`, the generated artifact should call \`fetch("https://api.openai.com/v1/responses", ...)\` directly. Rebolt will proxy that request server-side and inject auth.
+- Artifacts must never send \`Authorization\`, API-key, organization, or project headers themselves.
+- Keep OpenAI request payloads compact. Prefer schema/profile stats, aggregates, derived metrics, and tiny samples instead of large raw row arrays.
+- Use \`useReboltAI: false\` for artifacts that should stay fully local and browser-only.`;
 
 export const ANALYSIS_DESCRIPTION_QUALITY_SECTION = `## Description Quality
 
@@ -36,6 +50,19 @@ Example output format:
 \`\`\`
 {"files":{"/src/App.tsx":"import React from 'react';\\nimport { useDataset } from './rebolt-dataset';\\nexport default function App() { return <div>Hello</div>; }"}}
 \`\`\``;
+
+export const CODEGEN_RUNTIME_CONTRACT_SECTION = `## Runtime Contract
+
+- This project runs in browser-only Sandpack. Do not assume any local backend, Python service, Node server, shell command, or localhost endpoint exists.
+- Do NOT reference \`localhost\`, \`127.0.0.1\`, private LAN IPs, or invented backend routes such as \`/predict\`.
+- Do NOT use \`process.env\`, \`import.meta.env\`, API keys, or server-only imports/modules.
+- Do NOT call Anthropic, OpenRouter, Gemini, or any other provider endpoints directly.
+- When the prompt says \`useReboltAI\` is enabled, call only \`POST https://api.openai.com/v1/responses\` from artifact code. Rebolt proxies that request and injects auth for you.
+- Do NOT send \`Authorization\`, API-key, organization, or project headers from artifact code.
+- Include \`model: "gpt-4.1"\` in OpenAI Responses API request bodies. Rebolt will enforce the same model server-side.
+- Generated ML/forecast artifacts must be truthful: do not claim training, XGBoost, MAE, RMSE, or R² unless those metrics are explicitly provided by the prompt.
+- Public no-auth APIs that allow browser CORS can be fetched directly from the artifact.
+- Keep OpenAI request payloads compact. Prefer \`dataset.profile\`, derived metrics, and a tiny sample over raw \`dataset.rows\` dumps.`;
 
 export const CODEGEN_DESIGN_SECTION = `## Design
 

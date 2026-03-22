@@ -33,6 +33,8 @@ export interface DatasetEnvelope {
   };
 }
 
+export type DatasetProfileMap = Record<string, DatasetColumnProfile>;
+
 const DATASET_URL = ${JSON.stringify(fileData.datasetUrl)};
 const ERROR_PREFIX = ${JSON.stringify(ARTIFACT_DATASET_ERROR_MARKER)};
 
@@ -62,6 +64,21 @@ export function loadDataset(): Promise<DatasetEnvelope> {
   }
 
   return datasetPromise;
+}
+
+export function getProfileMap(dataset: DatasetEnvelope | null | undefined): DatasetProfileMap {
+  if (!dataset) {
+    return {};
+  }
+
+  return Object.fromEntries(dataset.profile.columns.map((profile) => [profile.name, profile]));
+}
+
+export function getColumnProfile(
+  dataset: DatasetEnvelope | null | undefined,
+  columnName: string,
+): DatasetColumnProfile | undefined {
+  return getProfileMap(dataset)[columnName];
 }
 
 export function useDataset(): {

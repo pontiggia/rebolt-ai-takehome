@@ -21,9 +21,9 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
     : (user.email?.[0]?.toUpperCase() ?? 'U');
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar conversations={conversations} userName={userName} userInitials={userInitials} userAvatarUrl={user.profilePictureUrl} />
-      <main className="min-h-0 flex-1">{children}</main>
+      <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
     </div>
   );
 }

@@ -28,7 +28,7 @@ export function ArtifactPanel({
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full min-w-0 w-full flex-col overflow-hidden">
       <ArtifactPanelHeader
         title={artifact.title}
         view={view}

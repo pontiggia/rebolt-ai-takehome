@@ -1,7 +1,9 @@
 import type { ArtifactToolInput, ArtifactToolOutput, AppUIMessage, GenerateArtifactToolInvocation } from '@/types/ai';
 import type { ActiveArtifact } from '@/types/chat';
 import type { ArtifactRetryRequestPayload } from '@/lib/artifact/artifact-retry';
-import { normalizeErrorMessage } from '@/lib/artifact/artifact-retry';
+import { normalizeErrorMessage, shapeArtifactRetryError } from '@/lib/artifact/artifact-retry';
+import { findLatestGenerateArtifactErrorPart } from '@/lib/artifact/find-latest-generate-artifact-error';
+import { isArtifactStaticValidationError } from '@/lib/tools/artifact-static-validator';
 
 export interface GenerateArtifactToolError {
   readonly signature: string;
@@ -30,6 +32,7 @@ function toActiveArtifact(messageId: string, part: GenerateArtifactToolInvocatio
     toolCallId: part.toolCallId,
     fileId: output.fileId ?? null,
     datasetUrl: output.datasetUrl ?? null,
+    usesReboltAI: typeof output.usesReboltAI === 'boolean' ? output.usesReboltAI : (input?.useReboltAI ?? false),
     title: output.title ?? input?.title ?? null,
     description: input?.description ?? null,
     files: output.files,
@@ -83,35 +86,34 @@ export function findLatestGenerateArtifactToolError(
   messages: readonly AppUIMessage[],
   fallbackFileId: string | null,
 ): GenerateArtifactToolError | null {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const message = messages[messageIndex];
-    if (message.role !== 'assistant') {
-      continue;
-    }
+  const latestError = findLatestGenerateArtifactErrorPart(messages, {
+    getRole: (message) => message.role,
+    getParts: (message) => message.parts,
+    getGenerateArtifactPart,
+  });
 
-    for (let partIndex = message.parts.length - 1; partIndex >= 0; partIndex -= 1) {
-      const part = getGenerateArtifactPart(message.parts[partIndex]);
-      if (!part || part.state !== 'output-error' || !part.errorText) {
-        continue;
-      }
-
-      const error = normalizeErrorMessage(part.errorText, 'Artifact generation failed.');
-      const input = part.input as ArtifactToolInput | undefined;
-      return {
-        signature: `${message.id}:${part.toolCallId}:${error}`,
-        payload: {
-          assistantMessageId: message.id,
-          artifactToolCallId: part.toolCallId,
-          fileId: fallbackFileId,
-          artifactTitle: input?.title ?? null,
-          artifactDescription: input?.description ?? null,
-          files: null,
-          error,
-          source: 'tool-output-error',
-        },
-      };
-    }
+  if (!latestError) {
+    return null;
   }
 
-  return null;
+  const message = latestError.message;
+  const part = latestError.part as GenerateArtifactToolInvocation;
+  const error = normalizeErrorMessage(latestError.errorText, 'Artifact generation failed.');
+  const source = isArtifactStaticValidationError(error) ? 'artifact-static-validation' : 'tool-output-error';
+  const input = part.input as ArtifactToolInput | undefined;
+
+  return {
+    signature: `${message.id}:${part.toolCallId}:${error}`,
+    payload: {
+      assistantMessageId: message.id,
+      artifactToolCallId: part.toolCallId,
+      fileId: fallbackFileId,
+      artifactTitle: input?.title ?? null,
+      artifactDescription: input?.description ?? null,
+      files: null,
+      error: shapeArtifactRetryError(error, source),
+      source,
+    },
+  };
+
 }

@@ -14,6 +14,7 @@ import { useAutoReply } from '@/hooks/use-auto-reply';
 import { useArtifact } from '@/hooks/use-artifact';
 import { useArtifactPanel } from '@/hooks/use-artifact-panel';
 import { useLiveAgentActivity } from '@/hooks/use-live-agent-activity';
+import { ArtifactRequestBridge } from '@/components/artifact/artifact-request-bridge';
 import { ChatViewArtifactPane } from '@/components/chat/chat-view-artifact-pane';
 import { ChatViewConversationPane } from '@/components/chat/chat-view-conversation-pane';
 import { ChatViewEmptyState } from '@/components/chat/chat-view-empty-state';
@@ -226,7 +227,8 @@ export function ChatView({
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-w-0 overflow-hidden">
+      <ArtifactRequestBridge conversationId={conversation.chatConversationId} artifact={activeArtifact} />
       <ChatViewConversationPane
         messages={messages}
         userInitials={userInitials}

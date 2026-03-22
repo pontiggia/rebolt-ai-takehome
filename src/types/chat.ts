@@ -10,6 +10,7 @@ export const ARTIFACT_RETRY_SOURCES = [
   'sandpack-runtime',
   'sandpack-notification',
   'sandpack-timeout',
+  'artifact-static-validation',
   'tool-output-error',
   'request-error',
 ] as const;
@@ -36,6 +37,7 @@ export interface ActiveArtifact {
   readonly toolCallId: string;
   readonly fileId: string | null;
   readonly datasetUrl?: string | null;
+  readonly usesReboltAI: boolean;
   readonly title: string | null;
   readonly description: string | null;
   readonly files: Readonly<Record<string, string>>;

@@ -7,8 +7,15 @@ interface ArtifactSandpackPreviewPaneProps {
 
 export function ArtifactSandpackPreviewPane({ view }: ArtifactSandpackPreviewPaneProps) {
   return (
-    <div style={{ display: view === 'preview' ? 'block' : 'none', height: '100%' }}>
-      <SandpackPreview showOpenInCodeSandbox={false} showRefreshButton={true} style={{ height: '100%' }} />
+    <div
+      className="h-full min-w-0 w-full overflow-hidden"
+      style={{ display: view === 'preview' ? 'block' : 'none' }}
+    >
+      <SandpackPreview
+        showOpenInCodeSandbox={false}
+        showRefreshButton={true}
+        style={{ width: '100%', height: '100%' }}
+      />
     </div>
   );
 }

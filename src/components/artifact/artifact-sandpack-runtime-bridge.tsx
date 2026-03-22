@@ -1,5 +1,7 @@
 import { useEffect, useEffectEvent } from 'react';
 import { useSandpack } from '@codesandbox/sandpack-react';
+import { ARTIFACT_AI_VALIDATION_ERROR_MARKER } from '@/lib/artifact/rebolt-ai-protocol';
+import { REBOLT_OPENAI_PROXY_VALIDATION_ERROR_MARKER } from '@/lib/artifact/rebolt-openai-proxy-protocol';
 import type { ArtifactRuntimeSurfaceProps } from '@/types/components';
 
 function getSandpackErrorMessage(
@@ -19,9 +21,23 @@ function getSandpackErrorMessage(
 
 export function ArtifactSandpackRuntimeBridge({
   onRuntimeEvent,
-}: Pick<ArtifactRuntimeSurfaceProps, 'onRuntimeEvent'>) {
+  runtimeMode,
+}: Pick<ArtifactRuntimeSurfaceProps, 'onRuntimeEvent' | 'runtimeMode'>) {
   const { sandpack, listen } = useSandpack();
   const emitRuntimeEvent = useEffectEvent(onRuntimeEvent);
+
+  const shouldIgnoreValidationError = useEffectEvent((message: string) => {
+    if (
+      runtimeMode !== 'validation' ||
+      (!message.startsWith(ARTIFACT_AI_VALIDATION_ERROR_MARKER) &&
+        !message.startsWith(REBOLT_OPENAI_PROXY_VALIDATION_ERROR_MARKER))
+    ) {
+      return false;
+    }
+
+    emitRuntimeEvent({ type: 'ready' });
+    return true;
+  });
 
   useEffect(() => {
     const unsubscribe = listen((message) => {
@@ -31,17 +47,27 @@ export function ArtifactSandpackRuntimeBridge({
       }
 
       if (message.type === 'action' && message.action === 'show-error') {
+        const errorMessage = getSandpackErrorMessage(message, 'The artifact preview threw an error.');
+        if (shouldIgnoreValidationError(errorMessage)) {
+          return;
+        }
+
         emitRuntimeEvent({
           type: 'runtime-error',
-          message: getSandpackErrorMessage(message, 'The artifact preview threw an error.'),
+          message: errorMessage,
         });
         return;
       }
 
       if (message.type === 'action' && message.action === 'notification' && message.notificationType === 'error') {
+        const errorMessage = getSandpackErrorMessage(message, 'Sandpack reported a preview error.');
+        if (shouldIgnoreValidationError(errorMessage)) {
+          return;
+        }
+
         emitRuntimeEvent({
           type: 'notification-error',
-          message: getSandpackErrorMessage(message, 'Sandpack reported a preview error.'),
+          message: errorMessage,
         });
       }
     });

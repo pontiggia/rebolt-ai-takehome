@@ -35,9 +35,28 @@ interface ValidateAppUIMessagesOptions {
   readonly tools: ReturnType<typeof createChatTools>;
 }
 
+function stripLegacyPredictionToolParts(messages: unknown): unknown {
+  if (!Array.isArray(messages)) {
+    return messages;
+  }
+
+  return messages.map((message) => {
+    if (!message || typeof message !== 'object' || !('parts' in message) || !Array.isArray(message.parts)) {
+      return message;
+    }
+
+    return {
+      ...message,
+      parts: message.parts.filter((part: unknown) => {
+        return !(part && typeof part === 'object' && 'type' in part && part.type === 'tool-analyzePredictionSchema');
+      }),
+    };
+  });
+}
+
 export async function validateAppUIMessages({ messages, tools }: ValidateAppUIMessagesOptions) {
   return safeValidateUIMessages<AppUIMessage>({
-    messages,
+    messages: stripLegacyPredictionToolParts(messages),
     dataSchemas: appUIMessageDataSchemas,
     tools: tools as Record<string, Tool<unknown, unknown>>,
   });
