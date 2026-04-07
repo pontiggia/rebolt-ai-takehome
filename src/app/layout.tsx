@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Rebolt',
+  title: 'Artifact Agent',
   description: 'Chat with your CSV/Excel data and generate interactive artifacts',
 };
 

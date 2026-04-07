@@ -26,7 +26,7 @@ export default function Home() {
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight text-foreground">Data to insights, instantly</h1>
             <p className="mx-auto max-w-md text-base text-muted-foreground">
-              Upload your spreadsheets and let AI generate interactive charts, dashboards, and reports.
+              Upload your spreadsheets and let AI generate mini-apps, artifacts and dashboards.
             </p>
           </div>
 
