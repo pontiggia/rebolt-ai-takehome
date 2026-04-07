@@ -43,3 +43,5 @@ next-env.d.ts
 strategy.md
 rebolt-design.md
 test-data
+/docs
+QA-LOG.md
